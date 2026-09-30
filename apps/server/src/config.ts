@@ -118,7 +118,7 @@ export function readConfig(): Config {
     publicUrl,
     dataDir: resolve(process.env.O1_DATA_DIR ?? process.env.DATA_DIR ?? ".o1"),
     databaseUrl: process.env.DATABASE_URL,
-    accessKey: process.env.O1_ACCESS_KEY ?? process.env.OPENMUSE_ACCESS_KEY,
+    accessKey: process.env.O1_ACCESS_KEY,
     accessIdentities,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
@@ -151,7 +151,7 @@ export function readConfig(): Config {
     (!config.encryptionKey || ((!config.accessKey || config.accessKey.length < 24) && config.accessIdentities?.every((item) => item.key.length < 24)))
   )
     throw new Error(
-      "Live mode requires OPENMUSE_ACCESS_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
+      "Live mode requires O1_ACCESS_KEY (24+ characters) or O1_ACCESS_KEYS_JSON with valid 24+ character keys, plus TOKEN_ENCRYPTION_KEY.",
     );
   if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
     throw new Error("Sample O1 workspace is local-only. HOST must be a loopback address.");
