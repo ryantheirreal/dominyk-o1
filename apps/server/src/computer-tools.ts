@@ -17,7 +17,7 @@ export function computerTools(
   files: Files,
   owner: string,
   scope: string,
-  options: { before?: () => Promise<void>; signal?: AbortSignal; permissionMode?: PermissionMode } = {},
+  options: { before?: () => Promise<void>; signal?: AbortSignal; permissionMode?: PermissionMode | (() => Promise<PermissionMode>) } = {},
 ) {
   const tool = <T extends z.ZodType>(
     name: string,
@@ -33,7 +33,8 @@ export function computerTools(
       execute: async (args) => {
         try {
           await options.before?.();
-          const decision = evaluatePermissionMode(options.permissionMode ?? "ask_codex", risk);
+          const configuredMode = typeof options.permissionMode === "function" ? await options.permissionMode() : options.permissionMode;
+          const decision = evaluatePermissionMode(configuredMode ?? "ask_codex", risk);
           if (decision.decision !== "allow") return { error: decision.reason, approvalRequired: true };
           return await action(parameters.parse(args));
         } catch (error) {
