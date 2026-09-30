@@ -51,6 +51,7 @@ export interface Config {
   computerDeploymentId?: string;
   computerGatewayUrl?: string;
   computerGatewayToken?: string;
+  computerProvisioningEnabled?: boolean;
   hetznerApiToken?: string;
   hetznerLocation?: string;
   hetznerServerType?: string;
@@ -123,6 +124,7 @@ export function readConfig(): Config {
     computerDeploymentId: process.env.O1_COMPUTER_DEPLOYMENT_ID ?? process.env.COMPUTER_DEPLOYMENT_ID,
     computerGatewayUrl: process.env.O1_COMPUTER_GATEWAY_URL ?? process.env.COMPUTER_GATEWAY_URL,
     computerGatewayToken: process.env.O1_COMPUTER_GATEWAY_TOKEN ?? process.env.COMPUTER_GATEWAY_TOKEN,
+    computerProvisioningEnabled: process.env.O1_COMPUTER_PROVISIONING_ENABLED === "true",
     hetznerApiToken: process.env.HETZNER_API_TOKEN,
     hetznerLocation: process.env.HETZNER_LOCATION,
     hetznerServerType: process.env.HETZNER_SERVER_TYPE ?? "cpx22",
