@@ -24,7 +24,7 @@ import { createO1Platform } from "./o1/index.ts";
 import { ImessageConnector } from "./o1/connectors/imessage.ts";
 import { ConnectorBus } from "./o1/connector-bus.ts";
 import { ConnectorActionService } from "./o1/connector-actions.ts";
-import { modeLabel, type PermissionMode, normalizePermissionMode, type LegacyPermissionMode } from "./o1/permissions.ts";
+import { modeLabel, type PermissionMode, normalizePermissionMode } from "./o1/permissions.ts";
 import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
 
@@ -195,7 +195,7 @@ export async function createApp(
   });
   app.get("/api/o1/permissions", async (c) => {
     const current = await db.get<any>(c.get("owner"), "o1-settings", "permissions");
-    const value = current ? { ...current, mode: normalizePermissionMode(current.mode as LegacyPermissionMode) } : { id:"permissions", mode:"ask_o1", updatedAt:new Date(0).toISOString() };
+    const value = current ? { ...current, mode: normalizePermissionMode(typeof current?.mode === "string" ? current.mode : undefined) } : { id:"permissions", mode:"ask_o1", updatedAt:new Date(0).toISOString() };
     return c.json(value);
   });
   app.put("/api/o1/permissions", async (c) => {
