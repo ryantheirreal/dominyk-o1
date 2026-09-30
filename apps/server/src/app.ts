@@ -22,6 +22,8 @@ import { GoogleAuth } from "./google-auth.ts";
 import { WorkspaceService } from "./workspace.ts";
 import { createO1Platform } from "./o1/index.ts";
 import { ImessageConnector } from "./o1/connectors/imessage.ts";
+import { ConnectorBus } from "./o1/connector-bus.ts";
+import { ConnectorActionService } from "./o1/connector-actions.ts";
 
 export async function createApp(
   db: Store,
@@ -46,6 +48,8 @@ export async function createApp(
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const o1 = await createO1Platform();
+  const connectorBus = new ConnectorBus();
+  const connectorActions = new ConnectorActionService(db, connectorBus);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -186,6 +190,25 @@ export async function createApp(
       result: { textSent: Boolean(result.text_sent), attachmentSent: Boolean(result.attachment_sent) },
     });
     return c.json({ ok: true, result: { textSent: Boolean(result.text_sent), attachmentSent: Boolean(result.attachment_sent) } }, 201);
+  });
+  app.get("/api/o1/connector-actions", async (c) => {
+    return c.json(await db.list(c.get("owner"), "o1-connector-actions"));
+  });
+  app.post("/api/o1/connector-actions", async (c) => {
+    const body = z.object({
+      operation: z.enum([
+        "slack.send_message","telegram.send_message","discord.send_message","imessage.send",
+      ]),
+      payload: z.record(z.string(), z.unknown()),
+    }).parse(await c.req.json());
+    return c.json(await connectorActions.propose(c.get("owner"), body.operation, body.payload), 201);
+  });
+  app.post("/api/o1/connector-actions/:id/decide", async (c) => {
+    const body = z.object({
+      hash: z.string().length(64),
+      decision: z.enum(["approve","deny"]),
+    }).parse(await c.req.json());
+    return c.json(await connectorActions.decide(c.get("owner"),c.req.param("id"),body.hash,body.decision));
   });
   app.get("/api/o1/imessage/messages", async (c) => {
     const after = c.req.query("after");
