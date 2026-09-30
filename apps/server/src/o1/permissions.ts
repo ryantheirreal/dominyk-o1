@@ -22,7 +22,7 @@ export function evaluatePermissionMode(
   explicitApproval = false,
 ) {
   if (risk === "read") return { decision: "allow" as const, reason: "Read-only operation." };
-  if (mode === "approve_for_me") return {
+  if (mode !== "ask_codex" && mode !== "ask_approval") return {
     decision: "allow" as const,
     reason: "Full access is active.",
   };
