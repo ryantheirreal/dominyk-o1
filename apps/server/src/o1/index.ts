@@ -2,6 +2,7 @@ import { capabilitySummary, O1_CAPABILITIES } from "./capabilities.ts";
 import { connectorStatuses, CONNECTORS, connector } from "./connectors.ts";
 import { authorizeTool, buildExecutionStages, buildMission, modelRoute, requiresVerification } from "./runtime.ts";
 import { redactSecrets } from "./policy.ts";
+export { MissionGovernor, canTransition } from "./mission-governor.ts";
 
 export async function createO1Platform() {
   return {
