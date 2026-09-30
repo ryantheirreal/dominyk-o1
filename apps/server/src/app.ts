@@ -51,7 +51,7 @@ export async function createApp(
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
-  const o1 = await createO1Platform();
+  const o1 = await createO1Platform(config);
   const connectorBus = new ConnectorBus();
   const connectorActions = new ConnectorActionService(db, connectorBus);
   const entitlements = new O1EntitlementService(db);
