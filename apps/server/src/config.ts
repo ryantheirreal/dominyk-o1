@@ -34,6 +34,7 @@ export interface Config {
   dataDir: string;
   databaseUrl?: string;
   accessKey?: string;
+  accessIdentities?: Array<{ owner: string; key: string }>;
   encryptionKey?: string;
   model?: string;
   agentBackend: "sample" | "model" | "agui";
@@ -99,6 +100,17 @@ export function readConfig(): Config {
     throw new Error("Live workspaces cannot use the sample agent");
   const port = Number(process.env.PORT ?? 8787);
   const publicUrl = process.env.PUBLIC_API_URL ?? `http://localhost:${port}`;
+  let accessIdentities: Array<{ owner: string; key: string }> = [];
+  if (process.env.O1_ACCESS_KEYS_JSON?.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(process.env.O1_ACCESS_KEYS_JSON);
+      if (!Array.isArray(parsed) || parsed.some((item) => !item || typeof item !== "object" || typeof (item as { owner?: unknown }).owner !== "string" || typeof (item as { key?: unknown }).key !== "string"))
+        throw new Error("invalid access identity list");
+      accessIdentities = parsed as Array<{ owner: string; key: string }>;
+    } catch {
+      throw new Error("O1_ACCESS_KEYS_JSON must be a JSON array of {owner,key} identities");
+    }
+  }
   const config: Config = {
     mode,
     port,
@@ -107,6 +119,7 @@ export function readConfig(): Config {
     dataDir: resolve(process.env.O1_DATA_DIR ?? process.env.DATA_DIR ?? ".o1"),
     databaseUrl: process.env.DATABASE_URL,
     accessKey: process.env.O1_ACCESS_KEY ?? process.env.OPENMUSE_ACCESS_KEY,
+    accessIdentities,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
     agentBackend: backend,
@@ -135,7 +148,7 @@ export function readConfig(): Config {
   };
   if (
     mode === "live" &&
-    (!config.accessKey || config.accessKey.length < 24 || !config.encryptionKey)
+    (!config.encryptionKey || ((!config.accessKey || config.accessKey.length < 24) && config.accessIdentities?.every((item) => item.key.length < 24)))
   )
     throw new Error(
       "Live mode requires OPENMUSE_ACCESS_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
