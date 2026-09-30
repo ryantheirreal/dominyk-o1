@@ -183,7 +183,7 @@ export async function createApp(
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
-  app.get("/api/o1/memory", async (c) => c.json(await memory.retrieve(c.get("owner"), c.req.query("q") ?? "", { limit: Number(c.req.query("limit") ?? "12") })));
+  app.get("/api/o1/memory", async (c) => { const q = c.req.query("q") ?? ""; const limit = z.coerce.number().int().min(1).max(50).default(12).parse(c.req.query("limit")); return c.json(await memory.retrieve(c.get("owner"), q, { limit })); });
   app.post("/api/o1/memory", async (c) => {
     const body = z.object({ scope: z.enum(["session","conversation","task","project","user","skill","semantic","episodic"]), text: z.string().trim().min(1).max(4000), source: z.string().trim().min(1).max(512), confidence: z.number().min(0).max(1).optional(), relevance: z.number().min(0).max(1).optional(), provenance: z.object({ type: z.string().min(1).max(128), ref: z.string().max(512).optional() }).optional() }).parse(await c.req.json());
     return c.json(await memory.remember({ owner: c.get("owner"), ...body }), 201);
