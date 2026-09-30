@@ -16,6 +16,7 @@ import type { AgentService } from "./service.ts";
 import { tanstackAgent } from "./tanstack-agent.ts";
 import { ConnectorBus } from "../o1/connector-bus.ts";
 import { ConnectorActionService } from "../o1/connector-actions.ts";
+import { evaluatePermissionMode, normalizePermissionMode } from "../o1/permissions.ts";
 
 export class ConversationAgent extends AbstractAgent {
   constructor(
@@ -186,8 +187,9 @@ export class ConversationAgent extends AbstractAgent {
         execute: async ({ sessionId, input: browserInput }) => {
           browserAbort.signal.throwIfAborted();
           const permission = await this.service.db.get<{ mode?: string }>(this.owner, "o1-settings", "permissions");
-          if (!["approve_for_me"].includes(permission?.mode ?? "ask_o1"))
-            return { error: "Browser interaction requires the current O1 permission mode to allow writes.", approvalRequired: true };
+          const decision = evaluatePermissionMode(normalizePermissionMode(permission?.mode), "write");
+          if (decision.decision !== "allow")
+            return { error: decision.reason, approvalRequired: true };
           try {
             return await this.service.browser.input(this.owner, sessionId, browserInput);
           } catch (error) {
