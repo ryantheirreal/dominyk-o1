@@ -94,7 +94,7 @@ export class ConnectorBus {
     switch(input.operation) {
       case "github.get_user":
         requiredEnv("github");
-        return requestJson(new URL("/user",allowedHosts.github),{headers:headers("github")})).json();
+        return requestJson(new URL("/user",allowedHosts.github),{headers:headers("github")});
       case "github.search_repositories": {
         requiredEnv("github");
         const q=String(p.query ?? "").trim();
@@ -102,42 +102,42 @@ export class ConnectorBus {
         const url=new URL("/search/repositories",allowedHosts.github);
         url.searchParams.set("q",q);
         url.searchParams.set("per_page","10");
-        return requestJson(url,{headers:headers("github")})).json();
+        return requestJson(url,{headers:headers("github")});
       }
       case "slack.auth_test":
         requiredEnv("slack");
-        return requestJson(new URL("/api/auth.test",allowedHosts.slack),{headers:headers("slack")})).json();
+        return requestJson(new URL("/api/auth.test",allowedHosts.slack),{headers:headers("slack")});
       case "slack.send_message":
         requiredEnv("slack");
         return requestJson(new URL("/api/chat.postMessage",allowedHosts.slack),{
           method:"POST",
           headers:{"Content-Type":"application/json",...headers("slack")},
           body:JSON.stringify({channel:String(p.channel ?? ""),text:String(p.text ?? "")}),
-        })).json();
+        });
       case "telegram.get_me":
         requiredEnv("telegram");
-        return requestJson(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/getMe")).json();
+        return requestJson(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/getMe");
       case "telegram.send_message":
         requiredEnv("telegram");
         return requestJson(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/sendMessage",{
           method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({chat_id:String(p.chatId ?? ""),text:String(p.text ?? "")}),
-        })).json();
+        });
       case "discord.me":
         requiredEnv("discord");
-        return requestJson(new URL("/users/@me",allowedHosts.discord),{headers:headers("discord")})).json();
+        return requestJson(new URL("/users/@me",allowedHosts.discord),{headers:headers("discord")});
       case "discord.send_message":
         requiredEnv("discord");
         return requestJson(new URL("/channels/" + encodeURIComponent(String(p.channelId ?? "")) + "/messages",allowedHosts.discord),{
           method:"POST",headers:{"Content-Type":"application/json",...headers("discord")},
           body:JSON.stringify({content:String(p.text ?? "")}),
-        })).json();
+        });
       case "notion.search":
         requiredEnv("notion");
         return requestJson(new URL("/v1/search",allowedHosts.notion),{
           method:"POST",headers:{"Content-Type":"application/json",...headers("notion")},
           body:JSON.stringify({query:String(p.query ?? "")}),
-        })).json();
+        });
       case "imessage.get_attachment": {
         const index=Number(p.index ?? -1);
         if(!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative integer");
