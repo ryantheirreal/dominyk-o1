@@ -60,6 +60,7 @@ export function computerTools(
       "Stop the private Linux computer while preserving /workspace",
       z.object({}),
       async () => computer.stop(owner),
+      "write",
     ),
     tool(
       "run_computer_command",
@@ -89,18 +90,21 @@ export function computerTools(
       "Save a UTF-8 file up to 256 KB inside /workspace",
       computerWriteSchema,
       async ({ path, text }) => computer.write(owner, path, text),
+      "write",
     ),
     tool(
       "mkdir_computer",
       "Create a directory inside /workspace",
       computerPathSchema,
       async ({ path }) => computer.mkdir(owner, path),
+      "write",
     ),
     tool(
       "import_computer_pdf",
       "Copy an owned app PDF into the computer without network access",
       computerPathSchema.extend({ fileId: z.string().min(1) }),
       async ({ path, fileId }) => computer.writePdf(owner, path, await files.bytes(owner, fileId)),
+      "write",
     ),
     tool(
       "export_computer_pdf",
@@ -110,6 +114,7 @@ export function computerTools(
         const { name, bytes } = await computer.pdfBytes(owner, path);
         return files.import(owner, name, bytes, `Computer: ${path}`);
       },
+      "write",
     ),
   ];
 }
