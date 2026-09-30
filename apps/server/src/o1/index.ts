@@ -4,16 +4,18 @@ import { connectorStatuses, CONNECTORS, connector } from "./connectors.ts";
 import { authorizeTool, buildExecutionStages, buildMission, modelRoute, requiresVerification } from "./runtime.ts";
 import { redactSecrets } from "./policy.ts";
 import { modelCatalog } from "./model-catalog.ts";
+import { OpenAIResponsesComputerClient } from "./openai-computer-client.ts";
 export { MissionGovernor, canTransition } from "./mission-governor.ts";
 export { createComputerFabric } from "./computer-fabric.ts";
 export { routeModel } from "./model-router.ts";
 
 export async function createO1Platform(config?: Config) {
   const computerFabric = config ? createComputerFabric(config) : undefined;
+  const computerUseClient = config?.openAiApiKey ? new OpenAIResponsesComputerClient(config.openAiApiKey, config.computerUseModel ?? "gpt-5.6-sol") : undefined;
   return {
     name:"O1",
     version:"0.3.0",
-    architecture:"OpenBot core + OpenMuse experience + O1 runtime",
+    architecture:"O1 agent runtime + persistent experience + governed computer fabric",
     capabilities:O1_CAPABILITIES,
     capabilitySummary,
     connectors:CONNECTORS,
@@ -27,6 +29,7 @@ export async function createO1Platform(config?: Config) {
     routeModel,
     modelCatalog,
     computerFabric,
+    computerUseClient,
     redactSecrets,
   };
 }
