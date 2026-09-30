@@ -33,6 +33,8 @@ import { routeModel } from "./o1/model-router.ts";
 import { O1RunPreferencesService } from "./o1/run-preferences.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
 import { O1AgentRegistry } from "./o1/agent-registry.ts";
+import { O1HandoffService } from "./o1/agent-handoff.ts";
+import { classifyFailure, decideRecovery } from "./o1/recovery-engine.ts";
 import { O1RoutineService } from "./o1/routines.ts";
 
 export async function createApp(
@@ -43,6 +45,7 @@ export async function createApp(
   assertApiDeploymentConfig(config);
   const audit = new O1AuditLedger(db);
   const agentRegistry = new O1AgentRegistry(db, audit);
+  const handoffs = new O1HandoffService(db, audit);
   const routines = new O1RoutineService(db, audit);
   const auth = await createAuth(db, config, audit),
     files = new Files(db, config, auth),
@@ -175,6 +178,20 @@ export async function createApp(
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/agents", async (c) => c.json(await agentRegistry.list(c.get("owner"))));
+  app.get("/api/o1/handoffs", async (c) => c.json(await handoffs.list(c.get("owner"))));
+  app.post("/api/o1/handoffs", async (c) => {
+    const body = z.object({ id: z.string().min(1).max(128), source: z.string().min(1).max(128), target: z.discriminatedUnion("type", [z.object({ type: z.literal("agent"), agentId: z.string().min(1).max(128) }), z.object({ type: z.literal("human"), reason: z.string().min(1).max(2000) })]), missionId: z.string().min(1).max(128), summary: z.string().min(1).max(4000), state: z.record(z.string(), z.unknown()).optional() }).parse(await c.req.json());
+    return c.json(await handoffs.create(c.get("owner"), body), 201);
+  });
+  app.post("/api/o1/handoffs/:id/transition", async (c) => {
+    const body = z.object({ status: z.enum(["accepted","returned","cancelled"]) }).parse(await c.req.json());
+    return c.json(await handoffs.transition(c.get("owner"), c.req.param("id"), body.status));
+  });
+  app.post("/api/o1/recovery/decide", (c) => {
+    const body = z.object({ message: z.string().min(1).max(4000) }).parse(c.req.query());
+    const failure = classifyFailure(new Error(body.message));
+    return c.json({ failure, decision: decideRecovery(failure) });
+  });
   app.post("/api/o1/agents", async (c) => {
     const body = z.object({ id: z.string().min(1).max(128).optional(), name: z.string().trim().min(1).max(120), role: z.string().trim().min(1).max(120), objective: z.string().trim().min(1).max(4000), modelPolicy: z.string().max(512).optional(), memoryScope: z.string().max(128).optional(), toolScopes: z.array(z.string().max(128)).max(100).optional() }).parse(await c.req.json());
     return c.json(await agentRegistry.create(c.get("owner"), body), 201);
