@@ -5,12 +5,12 @@ export class O1CommandCenterService {
 
   async snapshot(owner: string) {
     const [missions, agents, computers, routines, approvals, audit] = await Promise.all([
-      this.db.list(owner, "o1-missions"),
-      this.db.list(owner, "o1-agents"),
-      this.db.list(owner, "o1-computers"),
-      this.db.list(owner, "o1-routines"),
-      this.db.list(owner, "o1-connector-actions"),
-      this.db.list(owner, "o1-audit"),
+      this.db.list<Record<string, unknown>>(owner, "o1-missions"),
+      this.db.list<Record<string, unknown>>(owner, "o1-agents"),
+      this.db.list<Record<string, unknown>>(owner, "o1-computers"),
+      this.db.list<Record<string, unknown>>(owner, "o1-routines"),
+      this.db.list<Record<string, unknown>>(owner, "o1-connector-actions"),
+      this.db.list<Record<string, unknown>>(owner, "o1-audit"),
     ]);
     const activeMissions = missions.filter((item) => ["queued","running","waiting_input","waiting_approval","verifying","recovering"].includes(String(item.status)));
     const activeAgents = agents.filter((item) => ["working","waiting","verifying","blocked"].includes(String(item.status)));
