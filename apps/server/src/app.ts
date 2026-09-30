@@ -29,6 +29,7 @@ import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
 import { O1MissionStore } from "./o1/mission-store.ts";
 import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
+import { routeModel } from "./o1/model-router.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
 
 export async function createApp(
@@ -161,6 +162,13 @@ export async function createApp(
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
+  app.post("/api/o1/model-route", async (c) => {
+    const body = z.object({ effort: z.number().int().min(1).max(3), modelId: z.string().min(1).max(128).optional() }).parse(await c.req.json());
+    const entitlement = await entitlements.get(c.get("owner"));
+    const route = routeModel({ planId: entitlement.plan.id, effort: body.effort, modelId: body.modelId });
+    await audit.record({ owner: c.get("owner"), category: "model", action: "routed", targetId: route.modelId, data: route });
+    return c.json(route);
+  });
   app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
   app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
   app.post("/api/o1/computers", async (c) => {
