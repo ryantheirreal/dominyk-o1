@@ -71,3 +71,26 @@ export function capabilitySummary() {
     ids: O1_CAPABILITIES.map((item) => item.id),
   };
 }
+
+
+export interface SpecialistAgent {
+  id: string;
+  parentCapability: string;
+  role: string;
+  objective: string;
+  parallelGroup: string;
+  fallback: string[];
+}
+
+export function specialistAgents(id: string): SpecialistAgent[] {
+  const root = capability(id);
+  if (!root) return [];
+  return root.children.map((child, index) => ({
+    id: root.id + "::" + child,
+    parentCapability: root.id,
+    role: child,
+    objective: root.description,
+    parallelGroup: root.id + "::parallel",
+    fallback: index === 0 ? root.fallback : [],
+  }));
+}
