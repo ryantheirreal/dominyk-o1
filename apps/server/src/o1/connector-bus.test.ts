@@ -3,7 +3,7 @@ import { operationRisk } from "./connector-bus.ts";
 
 test("connector reads are classified as read", () => {
   expect(operationRisk("github.search_repositories")).toBe("read");
-  expect(operationRisk("notion.search")).toBe("read");
+  expect(operationRisk("notion.search","imessage.get_attachment")).toBe("read");
 });
 
 test("connector sends are classified as external", () => {
