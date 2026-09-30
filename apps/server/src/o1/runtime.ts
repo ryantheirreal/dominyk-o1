@@ -12,7 +12,7 @@ export interface MissionIntent {
 export interface MissionPlan {
   id: string;
   goal: string;
-  phases: Array<{ id:string; capability:string; dependsOn:string[]; mode:"primary"|"fallback" }>;
+  phases: Array<{ id:string; capability:string; dependsOn:string[]; mode:"primary"|"fallback"|"verification" }>;
   budget: MissionIntent["budget"];
 }
 
@@ -32,7 +32,14 @@ export function buildMission(intent: MissionIntent): { plan: MissionPlan; events
       const phaseId = intent.id + ":" + id;
       phases.push({ id:phaseId, capability:id, dependsOn:[...previous], mode:id === capabilityId ? "primary" : "fallback" });
       events.push({ type:"phase.expanded", at:new Date().toISOString(), data:{ missionId:intent.id, capability:id, parent:capabilityId } });
-      previous = [phaseId];
+      if (requiresVerification(id)) {
+        const verificationId = phaseId + ":verify";
+        phases.push({ id:verificationId, capability:id, dependsOn:[phaseId], mode:"verification" });
+        events.push({ type:"phase.expanded", at:new Date().toISOString(), data:{ missionId:intent.id, capability:id, verificationOf:phaseId } });
+        previous = [verificationId];
+      } else {
+        previous = [phaseId];
+      }
     }
   }
   const plan: MissionPlan = { id:intent.id, goal:intent.goal, phases, budget:intent.budget };
