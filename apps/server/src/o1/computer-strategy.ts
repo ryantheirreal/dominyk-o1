@@ -1,4 +1,4 @@
-export type O1ComputerStrategy = "dom-first" | "cuA" | "code-execution";
+export type O1ComputerStrategy = "dom-first" | "cua" | "code-execution";
 
 export interface O1ComputerStrategyInput {
   modelId: string;
@@ -10,6 +10,6 @@ export interface O1ComputerStrategyInput {
 
 export function chooseComputerStrategy(input: O1ComputerStrategyInput): O1ComputerStrategy {
   if (input.browserOnly || input.needsStructuredDom) return "dom-first";
-  if (input.needsDesktop) return "cuA";
-  return input.modelId.toLowerCase().includes("astra") ? "code-execution" : "cuA";
+  if (input.needsDesktop) return "cua";
+  return input.modelId.toLowerCase().includes("astra") ? "code-execution" : "cua";
 }
