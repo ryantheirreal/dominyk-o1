@@ -31,7 +31,7 @@ export class Auth {
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     });
     await this.audit?.record({ owner, category: "system", action: "session_created" });
-    return { token, mode: this.config.mode };
+    return { token, mode: this.config.mode, owner };
   }
   async owner(authorization?: string) {
     if (!authorization?.startsWith("Bearer ")) throw new AppError("Sign in to O1", 401);
