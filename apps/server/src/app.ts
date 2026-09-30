@@ -162,6 +162,7 @@ export async function createApp(
   }));
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
+  app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/run-preferences", async (c) => c.json(await runPreferences.get(c.get("owner"))));
