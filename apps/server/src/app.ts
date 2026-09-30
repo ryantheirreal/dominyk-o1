@@ -247,7 +247,7 @@ export async function createApp(
     if (!state || !code) throw new AppError("Google callback is incomplete");
     await google.callback(state, code);
     return c.html(
-      "<h1>Google is connected</h1><p>Return to OpenMuse and refresh your workspace.</p>",
+      "<h1>Google is connected</h1><p>Return to O1 and refresh your workspace.</p>",
     );
   });
   app.use("/api/*", async (c, next) => {
