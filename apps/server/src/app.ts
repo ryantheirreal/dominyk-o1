@@ -148,6 +148,7 @@ export async function createApp(
       architecture: o1.architecture,
       capabilities: o1.capabilitySummary(),
       connectors: statuses,
+      computer: { kind: o1.computerFabric?.kind ?? "unconfigured", provider: Boolean(o1.computerFabric?.provider), gateway: Boolean(o1.computerFabric?.gateway) },
     });
   });
   app.get("/api/o1/capabilities", (c) => c.json({
