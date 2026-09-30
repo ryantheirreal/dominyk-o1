@@ -1170,6 +1170,48 @@ export function ActivityScreen() {
     </View>
   );
 }
+function ConnectorApprovalCenter() {
+  const { api } = useWorkspace();
+  const [actions, setActions] = useState<Array<{ id: string; operation: string; payload: Record<string, unknown>; hash: string; status: string }>>([]);
+  const [busy, setBusy] = useState<string>("");
+  const [error, setError] = useState("");
+  const load = async () => {
+    try {
+      const rows = await api.request<typeof actions>("/api/o1/connector-actions");
+      setActions(rows.filter((item) => item.status === "awaiting_review"));
+      setError("");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  useEffect(() => { void load(); }, [api]);
+  async function decide(action: (typeof actions)[number], decision: "approve" | "deny") {
+    setBusy(action.id);
+    try {
+      await api.request(`/api/o1/connector-actions/${action.id}/decide`, { hash: action.hash, decision });
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(""); }
+  }
+  if (!actions.length && !error) return null;
+  return (
+    <Card style={{ gap: 12, backgroundColor: "#F7F5FF" }}>
+      <View style={[s.row, { gap: 8 }]}><ShieldCheck size={18} color={colors.blueDark} /><SectionHeading title="O1 approvals" /></View>
+      {actions.map((action) => (
+        <View key={action.id} style={{ gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.line }}>
+          <Text style={s.text}>{action.operation.replace(".", " · ")}</Text>
+          <Text selectable style={s.small}>{JSON.stringify(redactApprovalPayload(action.payload), null, 2)}</Text>
+          <View style={[s.row, { gap: 8 }]}><Button small danger busy={busy === action.id} onPress={() => void decide(action, "deny")}>Deny</Button><Button small primary busy={busy === action.id} onPress={() => void decide(action, "approve")}>Approve</Button></View>
+        </View>
+      ))}
+      <ErrorNotice error={error} />
+    </Card>
+  );
+}
+function redactApprovalPayload(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactApprovalPayload);
+  if (!value || typeof value !== "object") return value;
+  const secret = /token|secret|password|authorization|api[_-]?key|cookie|session/i;
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, secret.test(key) ? "[REDACTED]" : redactApprovalPayload(child)]));
+}
 export function ConnectionsScreen({ query = "" }: { query?: string }) {
   const { workspace: w, api, refresh, notify, open } = useWorkspace();
   const [selected, setSelected] = useState<string>();
