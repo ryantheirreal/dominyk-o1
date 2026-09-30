@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Store } from "../db.ts";
 import { AppError } from "../errors.ts";
 import type { ComputerAction, ComputerGateway, ComputerObservation } from "./computer-gateway.ts";
@@ -66,10 +66,39 @@ export class O1ComputerSessionService {
     return this.gateway.observe(session.providerId);
   }
 
-  async act(owner: string, id: string, action: ComputerAction): Promise<ComputerObservation> {
+  async act(owner: string, id: string, operationId: string, action: ComputerAction): Promise<ComputerObservation> {
     const session = await this.get(owner, id);
     if (!this.gateway) throw new AppError("No computer gateway is configured", 503);
-    return this.gateway.act(session.providerId, action);
+    if (!operationId.trim()) throw new AppError("operationId is required", 422);
+    const hash = createHash("sha256").update(JSON.stringify(action)).digest("hex");
+    const existing = await this.db.get<{
+      id: string; owner: string; computerId: string; operationId: string; hash: string;
+      status: "executing" | "succeeded" | "failed" | "outcome_unknown"; result?: ComputerObservation; error?: string;
+    }>(owner, "o1-computer-actions", operationId);
+    if (existing) {
+      if (existing.hash !== hash || existing.computerId !== id)
+        throw new AppError("Computer operationId was already used for a different action", 409);
+      if (existing.status === "succeeded" && existing.result) return existing.result;
+      if (existing.status === "outcome_unknown")
+        throw new AppError("Computer operation outcome is unknown; inspect the current computer state before retrying", 409);
+      if (existing.status === "executing")
+        throw new AppError("Computer operation is already executing", 409);
+    }
+    const receipt = {
+      id: operationId, owner, computerId: id, operationId, hash,
+      status: "executing" as const, createdAt: new Date().toISOString(), action,
+    };
+    await this.db.put(owner, "o1-computer-actions", receipt);
+    try {
+      const result = await this.gateway.act(session.providerId, action);
+      await this.db.put(owner, "o1-computer-actions", { ...receipt, status: "succeeded" as const, result });
+      return result;
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "";
+      const status = name === "AbortError" || name === "TimeoutError" ? "outcome_unknown" as const : "failed" as const;
+      await this.db.put(owner, "o1-computer-actions", { ...receipt, status, error: error instanceof Error ? error.message : "Computer action failed" });
+      throw error;
+    }
   }
 
   private async lifecycle(owner: string, id: string, operation: "start" | "stop") {
