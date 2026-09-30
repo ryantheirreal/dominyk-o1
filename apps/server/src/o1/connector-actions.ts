@@ -10,13 +10,18 @@ export interface ConnectorAction {
   operation: ConnectorOperation;
   payload: Record<string, unknown>;
   hash: string;
-  status: "awaiting_review" | "executing" | "succeeded" | "failed" | "denied" | "expired";
+  status: "awaiting_review" | "executing" | "succeeded" | "failed" | "outcome_unknown" | "denied" | "expired";
   createdAt: string;
   expiresAt: string;
   result?: unknown;
   error?: string;
 }
 
+
+function isUncertainOutcome(error: unknown) {
+  const name = error instanceof Error ? error.name : "";
+  return name === "AbortError" || name === "TimeoutError" || name === "ConnectTimeoutError";
+}
 export class ConnectorActionService {
   constructor(
     private readonly db: Store,
@@ -45,7 +50,7 @@ export class ConnectorActionService {
         const result=await this.bus.execute({ actorId:owner, operation, payload, approved:true });
         return this.db.put(owner,"o1-connector-actions",{...action,status:"succeeded",result});
       } catch (error) {
-        return this.db.put(owner,"o1-connector-actions",{...action,status:"failed",error:error instanceof Error?error.message:"Connector execution failed"});
+        const uncertain=isUncertainOutcome(error);
       }
     }
     return action;
@@ -79,7 +84,8 @@ export class ConnectorActionService {
       await this.db.put(owner,"o1-connector-actions",succeeded);
       return succeeded;
     } catch(error) {
-      const failed={...executing,status:"failed" as const,error:error instanceof Error?error.message:"Connector execution failed"};
+      const uncertain=isUncertainOutcome(error);
+      const failed={...executing,status:uncertain?"outcome_unknown" as const:"failed" as const,error:error instanceof Error?error.message:"Connector execution failed"};
       await this.db.put(owner,"o1-connector-actions",failed);
       return failed;
     }
