@@ -1,4 +1,4 @@
-export type PermissionMode = "ask_codex" | "ask_approval" | "full_access";
+export type PermissionMode = "ask_codex" | "ask_approval" | "approve_for_me";
 
 export interface PermissionSettings {
   mode: PermissionMode;
@@ -13,7 +13,7 @@ export function defaultPermissionSettings(): PermissionSettings {
 export function modeLabel(mode: PermissionMode) {
   if (mode === "ask_codex") return "Ask Codex anything";
   if (mode === "ask_approval") return "Ask for approval";
-  return "Approve for me";
+  return "Approve for me / Full access";
 }
 
 export function evaluatePermissionMode(
@@ -22,7 +22,7 @@ export function evaluatePermissionMode(
   explicitApproval = false,
 ) {
   if (risk === "read") return { decision: "allow" as const, reason: "Read-only operation." };
-  if (mode === "full_access") return {
+  if (mode === "approve_for_me") return {
     decision: "allow" as const,
     reason: "Full access is active.",
   };
