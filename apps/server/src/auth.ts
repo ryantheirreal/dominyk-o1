@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Config } from "./config.ts";
 import type { Store } from "./db.ts";
 import { AppError } from "./errors.ts";
+import type { O1AuditLedger } from "./o1/audit-ledger.ts";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 export class Auth {
@@ -11,6 +12,7 @@ export class Auth {
     private readonly db: Store,
     private readonly config: Config,
     private readonly signingKey: string,
+    private readonly audit?: O1AuditLedger,
   ) {}
   async session(accessKey?: string) {
     let owner = "local-user";
@@ -28,6 +30,7 @@ export class Auth {
       owner,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     });
+    await this.audit?.record({ owner, category: "system", action: "session_created" });
     return { token, mode: this.config.mode };
   }
   async owner(authorization?: string) {
@@ -67,7 +70,7 @@ export class Auth {
     return owner;
   }
 }
-export async function createAuth(db: Store, config: Config) {
+export async function createAuth(db: Store, config: Config, audit?: O1AuditLedger) {
   await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   const path = join(config.dataDir, "session-signing-key");
   let key: string;
@@ -78,5 +81,5 @@ export async function createAuth(db: Store, config: Config) {
     key = randomBytes(32).toString("base64");
     await writeFile(path, key, { mode: 0o600, flag: "wx" });
   }
-  return new Auth(db, config, key);
+  return new Auth(db, config, key, audit);
 }
