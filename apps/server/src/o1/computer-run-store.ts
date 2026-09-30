@@ -34,6 +34,25 @@ export class O1ComputerRunStore {
   async get(owner: string, id: string) {
     return this.db.get<O1ComputerRun>(owner, "o1-computer-runs", id);
   }
+  async upsert(owner: string, id: string, input: {
+    computerId: string;
+    prompt: string;
+    responseId: string;
+    turn: number;
+    status: O1ComputerRunStatus;
+    callId?: string;
+    lastCall?: O1ComputerCall;
+    error?: string;
+  }) {
+    const current = await this.get(owner, id);
+    if (!current) {
+      const now = new Date().toISOString();
+      return this.db.put(owner, "o1-computer-runs", {
+        id, owner, ...input, createdAt: now, updatedAt: now,
+      });
+    }
+    return this.update(owner, id, input);
+  }
 
   async update(owner: string, id: string, patch: Partial<Omit<O1ComputerRun, "id" | "owner" | "createdAt">>) {
     const current = await this.get(owner, id);
