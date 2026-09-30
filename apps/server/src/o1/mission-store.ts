@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Store } from "../db.ts";
 import { AppError } from "../errors.ts";
 import { MissionGovernor, type MissionCheckpoint, type MissionStatus } from "./mission-governor.ts";
+import type { O1AuditLedger } from "./audit-ledger.ts";
 
 export interface StoredMission extends MissionCheckpoint {
   id: string;
@@ -11,7 +12,7 @@ export interface StoredMission extends MissionCheckpoint {
 }
 
 export class O1MissionStore {
-  constructor(private readonly db: Store, private readonly governor = new MissionGovernor()) {}
+  constructor(private readonly db: Store, private readonly governor = new MissionGovernor(), private readonly audit?: O1AuditLedger) {}
 
   async create(owner: string, input: { id?: string; goal: string; budget?: StoredMission['budget'] }) {
     const id = input.id ?? randomUUID();
@@ -22,7 +23,8 @@ export class O1MissionStore {
     if (!mission.goal) throw new AppError("Mission goal is required", 422);
     const existing = await this.db.get<StoredMission>(owner, 'o1-missions', id);
     if (existing) throw new AppError("Mission already exists", 409);
-    await this.db.put(owner, 'o1-missions', mission);
+    await this.db.put(owner, "o1-missions", mission);
+    await this.audit?.record({ owner, category: "mission", action: "created", targetId: id, data: { goal: mission.goal, budget: mission.budget } });
     return mission;
   }
 
@@ -42,6 +44,7 @@ export class O1MissionStore {
       owner, 'o1-missions', id, { status: current.status, updatedAt: current.updatedAt }, updated,
     );
     if (!claimed) throw new AppError("Mission changed concurrently; reload and retry", 409);
+    await this.audit?.record({ owner, category: "mission", action: "transitioned", targetId: id, data: { from: current.status, to: next } });
     return claimed;
   }
 
@@ -55,6 +58,7 @@ export class O1MissionStore {
       owner, 'o1-missions', id, { status: current.status, updatedAt: current.updatedAt }, updated,
     );
     if (!claimed) throw new AppError("Mission changed concurrently; reload and retry", 409);
+    await this.audit?.record({ owner, category: "mission", action: "checkpointed", targetId: id, data: patch });
     return claimed;
   }
 }
