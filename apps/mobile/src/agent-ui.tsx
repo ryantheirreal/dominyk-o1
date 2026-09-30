@@ -192,6 +192,7 @@ export function AgentActivityScreen() {
   return (
     <View style={{ gap: 20 }}>
       <AgentStatus />
+      <CommandCenterCard />
       <AgentRoster />
       <View style={[s.row, { gap: 8 }]}>
         {["All", "In progress", "Finished"].map((item) => (
@@ -1664,6 +1665,49 @@ export function NotificationsSheet() {
     </Sheet>
   );
 }
+function CommandCenterCard() {
+  const { api } = useWorkspace();
+  const [snapshot, setSnapshot] = useState<any>();
+  const [error, setError] = useState("");
+  const load = async () => {
+    try {
+      setSnapshot(await api.request("/api/o1/command-center"));
+      setError("");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  useEffect(() => { void load(); }, [api]);
+  if (!snapshot && !error) return null;
+  return (
+    <Card style={{ gap: 11 }}>
+      <View style={[s.row, { gap: 8 }]}><ListChecks size={18} color={colors.blueDark} /><SectionHeading title="Command Center" /></View>
+      {snapshot && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+          {[
+            ["Missions", snapshot.counts.activeMissions],
+            ["Agents", snapshot.counts.activeAgents],
+            ["Computers", snapshot.counts.activeComputers],
+            ["Approvals", snapshot.counts.pendingApprovals],
+            ["Routines", snapshot.counts.enabledRoutines],
+          ].map(([label, value]) => (
+            <View key={String(label)} style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 13, backgroundColor: "#F3F5F6" }}>
+              <Text style={{ fontSize: 10, fontWeight: "800", color: colors.muted }}>{label}</Text>
+              <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>{String(value)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {snapshot?.pendingApprovals?.slice(0, 2).map((item: any) => (
+        <View key={item.id} style={{ paddingTop: 9, borderTopWidth: 1, borderTopColor: colors.line }}>
+          <Text style={s.text}>{item.operation?.replace(".", " · ")}</Text>
+          <Text style={s.small}>Awaiting your approval</Text>
+        </View>
+      ))}
+      <Button small icon={RefreshCw} onPress={() => void load()}>Refresh command center</Button>
+      <ErrorNotice error={error} />
+    </Card>
+  );
+}
+
 function AgentRoster() {
   const { api } = useWorkspace();
   const [agents, setAgents] = useState<Array<{ id: string; name: string; role: string; objective: string; status: string }>>([]);
