@@ -24,7 +24,7 @@ import { createO1Platform } from "./o1/index.ts";
 import { ImessageConnector } from "./o1/connectors/imessage.ts";
 import { ConnectorBus } from "./o1/connector-bus.ts";
 import { ConnectorActionService } from "./o1/connector-actions.ts";
-import { modeLabel, type PermissionMode, normalizePermissionMode } from "./o1/permissions.ts";
+import { evaluatePermissionMode, modeLabel, type PermissionMode, normalizePermissionMode } from "./o1/permissions.ts";
 import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
 import { O1MissionStore } from "./o1/mission-store.ts";
@@ -58,6 +58,13 @@ export async function createApp(
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true);
+  async function requireComputerPermission(owner: string, risk: "write" | "destructive") {
+    const settings = await db.get<{ mode?: string }>(owner, "o1-settings", "permissions");
+    const decision = evaluatePermissionMode(normalizePermissionMode(settings?.mode), risk);
+    if (decision.decision !== "allow")
+      throw new AppError("Computer action requires approval in the current O1 permission mode", 409);
+  }
+
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -154,14 +161,16 @@ export async function createApp(
   app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
   app.post("/api/o1/computers", async (c) => {
     const body = z.object({ name: z.string().trim().min(1).max(63), image: z.string().trim().max(128).optional(), region: z.string().trim().max(64).optional(), size: z.string().trim().max(64).optional() }).parse(await c.req.json());
+    await requireComputerPermission(c.get("owner"), "write");
     return c.json(await computers.create(c.get("owner"), body), 201);
   });
   app.get("/api/o1/computers/:id", async (c) => c.json(await computers.get(c.get("owner"), c.req.param("id"))));
   app.post("/api/o1/computers/:id/sync", async (c) => c.json(await computers.sync(c.get("owner"), c.req.param("id"))));
-  app.post("/api/o1/computers/:id/start", async (c) => c.json(await computers.start(c.get("owner"), c.req.param("id"))));
-  app.post("/api/o1/computers/:id/stop", async (c) => c.json(await computers.stop(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/start", async (c) => { await requireComputerPermission(c.get("owner"), "write"); return c.json(await computers.start(c.get("owner"), c.req.param("id"))); });
+  app.post("/api/o1/computers/:id/stop", async (c) => { await requireComputerPermission(c.get("owner"), "write"); return c.json(await computers.stop(c.get("owner"), c.req.param("id"))); });
   app.post("/api/o1/computers/:id/observe", async (c) => c.json(await computers.observe(c.get("owner"), c.req.param("id"))));
   app.post("/api/o1/computers/:id/action", async (c) => {
+    await requireComputerPermission(c.get("owner"), "write");
     const body = z.discriminatedUnion("type", [
       z.object({ type: z.literal("click"), x: z.number().finite(), y: z.number().finite() }),
       z.object({ type: z.literal("double_click"), x: z.number().finite(), y: z.number().finite() }),
@@ -173,7 +182,7 @@ export async function createApp(
     ]).parse(await c.req.json());
     return c.json(await computers.act(c.get("owner"), c.req.param("id"), body));
   });
-  app.delete("/api/o1/computers/:id", async (c) => c.json(await computers.destroy(c.get("owner"), c.req.param("id"))));
+  app.delete("/api/o1/computers/:id", async (c) => { await requireComputerPermission(c.get("owner"), "destructive"); return c.json(await computers.destroy(c.get("owner"), c.req.param("id"))); });
   app.get("/api/o1/missions/:id", async (c) => {
     const mission = await missions.get(c.get("owner"), c.req.param("id"));
     if (!mission) throw new AppError("Mission not found", 404);
