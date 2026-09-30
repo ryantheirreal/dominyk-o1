@@ -24,7 +24,9 @@ export class ConnectorActionService {
     private readonly now = Date.now,
   ) {}
 
-  async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>, mode: PermissionMode = "ask_codex") {
+  async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>, mode?: PermissionMode) {
+    const settings = await this.db.get<{ id:string; mode:PermissionMode }>(owner,"o1-settings","permissions");
+    mode = mode ?? settings?.mode ?? "ask_codex";
     const id=randomUUID();
     const hash=createHash("sha256").update(JSON.stringify({ operation, payload })).digest("hex");
     const risk = operation.includes("send") ? "external" as const : "write" as const;
