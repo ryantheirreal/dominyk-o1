@@ -61,7 +61,7 @@ export async function createApp(
   const connectorActions = new ConnectorActionService(db, connectorBus, Date.now, audit);
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db, undefined, audit);
-  const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true, audit);
+  const computers = new O1ComputerSessionService(db, o1.computerFabric?.persistentProvider, o1.computerFabric?.persistentGateway, config.computerProvisioningEnabled === true, audit);
   const runPreferences = new O1RunPreferencesService(db, entitlements, audit);
   async function requireComputerPermission(owner: string, risk: "write" | "destructive") {
     const settings = await db.get<{ mode?: string }>(owner, "o1-settings", "permissions");
@@ -153,7 +153,7 @@ export async function createApp(
       architecture: o1.architecture,
       capabilities: o1.capabilitySummary(),
       connectors: statuses,
-      computer: { kind: o1.computerFabric?.kind ?? "unconfigured", provider: Boolean(o1.computerFabric?.provider), gateway: Boolean(o1.computerFabric?.gateway) },
+      computer: { kind: o1.computerFabric?.kind ?? "unconfigured", persistentProvider: Boolean(o1.computerFabric?.persistentProvider), persistentGateway: Boolean(o1.computerFabric?.persistentGateway), browserGateway: Boolean(o1.computerFabric?.browserGateway) },
     });
   });
   app.get("/api/o1/capabilities", (c) => c.json({
