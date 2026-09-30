@@ -61,6 +61,22 @@ export class ConnectorActionService {
     return action;
   }
 
+  async sweepExpired(owner: string) {
+    const actions = await this.db.list<ConnectorAction>(owner, "o1-connector-actions");
+    for (const action of actions) {
+      if (action.status === "awaiting_review" && Date.parse(action.expiresAt) <= this.now()) {
+        const expired = { ...action, status: "expired" as const };
+        await this.db.put(owner, "o1-connector-actions", expired);
+        await this.audit?.record({ owner, category: "connector", action: "expired", targetId: action.id, data: { operation: action.operation } });
+      }
+    }
+  }
+
+  async list(owner: string) {
+    await this.sweepExpired(owner);
+    return this.db.list<ConnectorAction>(owner, "o1-connector-actions");
+  }
+
   async decide(owner: string, id: string, hash: string, decision:"approve"|"deny") {
     const action=await this.db.get<ConnectorAction>(owner,"o1-connector-actions",id);
     if(!action) throw new AppError("Connector action not found",404);
