@@ -32,6 +32,8 @@ import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
 import { routeModel } from "./o1/model-router.ts";
 import { O1RunPreferencesService } from "./o1/run-preferences.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
+import { O1AgentRegistry } from "./o1/agent-registry.ts";
+import { O1RoutineService } from "./o1/routines.ts";
 
 export async function createApp(
   db: Store,
@@ -40,6 +42,8 @@ export async function createApp(
 ) {
   assertApiDeploymentConfig(config);
   const audit = new O1AuditLedger(db);
+  const agentRegistry = new O1AgentRegistry(db, audit);
+  const routines = new O1RoutineService(db, audit);
   const auth = await createAuth(db, config, audit),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
@@ -170,6 +174,24 @@ export async function createApp(
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
+  app.get("/api/o1/agents", async (c) => c.json(await agentRegistry.list(c.get("owner"))));
+  app.post("/api/o1/agents", async (c) => {
+    const body = z.object({ id: z.string().min(1).max(128).optional(), name: z.string().trim().min(1).max(120), role: z.string().trim().min(1).max(120), objective: z.string().trim().min(1).max(4000), modelPolicy: z.string().max(512).optional(), memoryScope: z.string().max(128).optional(), toolScopes: z.array(z.string().max(128)).max(100).optional() }).parse(await c.req.json());
+    return c.json(await agentRegistry.create(c.get("owner"), body), 201);
+  });
+  app.post("/api/o1/agents/:id/status", async (c) => {
+    const body = z.object({ status: z.enum(["idle","working","waiting","verifying","blocked","recovered","completed"]) }).parse(await c.req.json());
+    return c.json(await agentRegistry.setStatus(c.get("owner"), c.req.param("id"), body.status));
+  });
+  app.get("/api/o1/routines", async (c) => c.json(await routines.list(c.get("owner"))));
+  app.post("/api/o1/routines", async (c) => {
+    const body = z.object({ id: z.string().min(1).max(128), name: z.string().trim().min(1).max(120), goal: z.string().trim().min(1).max(4000), planId: z.enum(["mini","agent-pro-plus","max-20x"]), trigger: z.discriminatedUnion("type", [z.object({ type: z.literal("schedule"), cron: z.string().min(1).max(120) }), z.object({ type: z.literal("webhook"), key: z.string().min(1).max(256) }), z.object({ type: z.literal("event"), source: z.string().min(1).max(128), event: z.string().min(1).max(256) })]) }).parse(await c.req.json());
+    return c.json(await routines.create(c.get("owner"), body), 201);
+  });
+  app.post("/api/o1/routines/:id/enabled", async (c) => {
+    const body = z.object({ enabled: z.boolean() }).parse(await c.req.json());
+    return c.json(await routines.setEnabled(c.get("owner"), c.req.param("id"), body.enabled));
+  });
   app.get("/api/o1/run-preferences", async (c) => c.json(await runPreferences.get(c.get("owner"))));
   app.put("/api/o1/run-preferences", async (c) => {
     const body = z.object({ effort: z.number().int().min(1).max(3), modelId: z.string().min(1).max(128) }).parse(await c.req.json());
