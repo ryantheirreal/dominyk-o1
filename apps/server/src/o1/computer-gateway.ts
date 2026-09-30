@@ -1,9 +1,13 @@
 export type ComputerAction =
-  | { type: "click"; x: number; y: number }
+  | { type: "click"; x: number; y: number; button?: "left" | "right" | "wheel" | "back" | "forward" }
   | { type: "double_click"; x: number; y: number }
   | { type: "type"; text: string }
   | { type: "key"; key: string }
-  | { type: "scroll"; deltaX: number; deltaY: number }
+  | { type: "keypress"; keys: string[] }
+  | { type: "scroll"; x?: number; y?: number; deltaX: number; deltaY: number }
+  | { type: "move"; x: number; y: number }
+  | { type: "drag"; path: Array<{ x: number; y: number }> }
+  | { type: "wait" }
   | { type: "navigate"; url: string }
   | { type: "shell"; command: string; cwd?: string };
 
