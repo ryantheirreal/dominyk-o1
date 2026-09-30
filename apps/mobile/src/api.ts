@@ -5,7 +5,7 @@ export const API_URL = (
   (Platform.OS === "android" ? "http://10.0.2.2:8787" : "http://localhost:8787")
 ).replace(/\/$/, "");
 
-export class MuseApi {
+export class O1Api {
   constructor(readonly token: string) {}
   async request<T>(path: string, body?: unknown, method?: string): Promise<T> {
     const response = await fetch(`${API_URL}${path}`, {
@@ -29,6 +29,8 @@ export class MuseApi {
     return path.startsWith("http") ? path : `${API_URL}${path}`;
   }
 }
+
+export const MuseApi = O1Api;
 
 export async function createSession(
   accessKey?: string,
