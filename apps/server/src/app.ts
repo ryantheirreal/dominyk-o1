@@ -39,7 +39,8 @@ export async function createApp(
   options: { docker?: DockerRunner } = {},
 ) {
   assertApiDeploymentConfig(config);
-  const auth = await createAuth(db, config),
+  const audit = new O1AuditLedger(db);
+  const auth = await createAuth(db, config, audit),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
     workspace = new WorkspaceService(db, config, files, google);
@@ -57,7 +58,6 @@ export async function createApp(
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const o1 = await createO1Platform(config);
   const connectorBus = new ConnectorBus();
-  const audit = new O1AuditLedger(db);
   const connectorActions = new ConnectorActionService(db, connectorBus, Date.now, audit);
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db, undefined, audit);
