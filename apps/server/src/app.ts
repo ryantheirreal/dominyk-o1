@@ -26,6 +26,7 @@ import { ConnectorBus } from "./o1/connector-bus.ts";
 import { ConnectorActionService } from "./o1/connector-actions.ts";
 import { modeLabel, type PermissionMode, normalizePermissionMode, type LegacyPermissionMode } from "./o1/permissions.ts";
 import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
+import { O1EntitlementService } from "./o1/entitlements.ts";
 
 export async function createApp(
   db: Store,
@@ -52,6 +53,7 @@ export async function createApp(
   const o1 = await createO1Platform();
   const connectorBus = new ConnectorBus();
   const connectorActions = new ConnectorActionService(db, connectorBus);
+  const entitlements = new O1EntitlementService(db);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -137,6 +139,7 @@ export async function createApp(
   }));
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
+  app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/connectors/:id/health", async (c) => {
     const id = c.req.param("id");
     if (!o1.connector(id)) throw new AppError("Connector not found", 404);
