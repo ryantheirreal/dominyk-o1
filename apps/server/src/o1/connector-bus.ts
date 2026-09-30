@@ -56,8 +56,15 @@ function requiredEnv(id: string) {
   if (missing.length) throw new Error(id + " connector is not configured: " + missing.join(", "));
 }
 
-async function request(url: string | URL, init: RequestInit = {}) {
-  return fetch(url,{...init,signal:init.signal ?? AbortSignal.timeout(15000)});
+async function requestJson(url: string | URL, init: RequestInit = {}) {
+  const response = await fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(15000) });
+  const text = await response.text();
+  let body: unknown;
+  try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text.slice(0, 1000) }; }
+  if (!response.ok) throw new Error(`Connector HTTP ${response.status}: ${JSON.stringify(body).slice(0, 1000)}`);
+  if (body && typeof body === "object" && "ok" in body && (body as { ok?: unknown }).ok === false)
+    throw new Error(`Connector rejected the operation: ${JSON.stringify(body).slice(0, 1000)}`);
+  return body;
 }
 
 export function operationRisk(operation: ConnectorOperation): O1Risk {
@@ -87,7 +94,7 @@ export class ConnectorBus {
     switch(input.operation) {
       case "github.get_user":
         requiredEnv("github");
-        return (await request(new URL("/user",allowedHosts.github),{headers:headers("github")})).json();
+        return requestJson(new URL("/user",allowedHosts.github),{headers:headers("github")})).json();
       case "github.search_repositories": {
         requiredEnv("github");
         const q=String(p.query ?? "").trim();
@@ -95,39 +102,39 @@ export class ConnectorBus {
         const url=new URL("/search/repositories",allowedHosts.github);
         url.searchParams.set("q",q);
         url.searchParams.set("per_page","10");
-        return (await request(url,{headers:headers("github")})).json();
+        return requestJson(url,{headers:headers("github")})).json();
       }
       case "slack.auth_test":
         requiredEnv("slack");
-        return (await request(new URL("/api/auth.test",allowedHosts.slack),{headers:headers("slack")})).json();
+        return requestJson(new URL("/api/auth.test",allowedHosts.slack),{headers:headers("slack")})).json();
       case "slack.send_message":
         requiredEnv("slack");
-        return (await request(new URL("/api/chat.postMessage",allowedHosts.slack),{
+        return requestJson(new URL("/api/chat.postMessage",allowedHosts.slack),{
           method:"POST",
           headers:{"Content-Type":"application/json",...headers("slack")},
           body:JSON.stringify({channel:String(p.channel ?? ""),text:String(p.text ?? "")}),
         })).json();
       case "telegram.get_me":
         requiredEnv("telegram");
-        return (await request(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/getMe")).json();
+        return requestJson(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/getMe")).json();
       case "telegram.send_message":
         requiredEnv("telegram");
-        return (await request(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/sendMessage",{
+        return requestJson(allowedHosts.telegram + "/bot" + process.env.TELEGRAM_BOT_TOKEN + "/sendMessage",{
           method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({chat_id:String(p.chatId ?? ""),text:String(p.text ?? "")}),
         })).json();
       case "discord.me":
         requiredEnv("discord");
-        return (await request(new URL("/users/@me",allowedHosts.discord),{headers:headers("discord")})).json();
+        return requestJson(new URL("/users/@me",allowedHosts.discord),{headers:headers("discord")})).json();
       case "discord.send_message":
         requiredEnv("discord");
-        return (await request(new URL("/channels/" + encodeURIComponent(String(p.channelId ?? "")) + "/messages",allowedHosts.discord),{
+        return requestJson(new URL("/channels/" + encodeURIComponent(String(p.channelId ?? "")) + "/messages",allowedHosts.discord),{
           method:"POST",headers:{"Content-Type":"application/json",...headers("discord")},
           body:JSON.stringify({content:String(p.text ?? "")}),
         })).json();
       case "notion.search":
         requiredEnv("notion");
-        return (await request(new URL("/v1/search",allowedHosts.notion),{
+        return requestJson(new URL("/v1/search",allowedHosts.notion),{
           method:"POST",headers:{"Content-Type":"application/json",...headers("notion")},
           body:JSON.stringify({query:String(p.query ?? "")}),
         })).json();
