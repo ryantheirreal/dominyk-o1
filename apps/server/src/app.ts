@@ -270,6 +270,7 @@ export async function createApp(
       updatedAt:new Date().toISOString(),
     };
     await db.put(c.get("owner"),"o1-settings",value);
+    await audit.record({ owner: c.get("owner"), category: "permission", action: "changed", targetId: "permissions", data: { mode: value.mode, confirmed: body.mode === "approve_for_me" } });
     return c.json(value);
   });
   app.get("/api/o1/connector-actions", async (c) => {
