@@ -49,6 +49,12 @@ export interface Config {
   computerEnabled?: boolean;
   computerImage?: string;
   computerDeploymentId?: string;
+  computerGatewayUrl?: string;
+  computerGatewayToken?: string;
+  hetznerApiToken?: string;
+  hetznerLocation?: string;
+  hetznerServerType?: string;
+  hetznerImage?: string;
   allowedOrigins: string[];
 }
 
@@ -115,6 +121,12 @@ export function readConfig(): Config {
     computerEnabled: process.env.COMPUTER_ENABLED === "true",
     computerImage: process.env.O1_COMPUTER_IMAGE ?? process.env.COMPUTER_IMAGE ?? "o1-computer:local",
     computerDeploymentId: process.env.O1_COMPUTER_DEPLOYMENT_ID ?? process.env.COMPUTER_DEPLOYMENT_ID,
+    computerGatewayUrl: process.env.O1_COMPUTER_GATEWAY_URL ?? process.env.COMPUTER_GATEWAY_URL,
+    computerGatewayToken: process.env.O1_COMPUTER_GATEWAY_TOKEN ?? process.env.COMPUTER_GATEWAY_TOKEN,
+    hetznerApiToken: process.env.HETZNER_API_TOKEN,
+    hetznerLocation: process.env.HETZNER_LOCATION,
+    hetznerServerType: process.env.HETZNER_SERVER_TYPE ?? "cpx22",
+    hetznerImage: process.env.HETZNER_IMAGE ?? "ubuntu-24.04",
     allowedOrigins: (
       process.env.ALLOWED_ORIGINS ?? "http://localhost:8081,http://127.0.0.1:8081"
     ).split(","),
