@@ -34,7 +34,6 @@ import {
 import { AgentWorkspaceProvider, useAgentWorkspace } from "./src/agent-workspace";
 import { API_URL, createSession, MuseApi } from "./src/api";
 import { ChatScreen, WorkspaceTools } from "./src/chat";
-import { PlanCatalog } from "./src/plan-catalog";
 import { ComputerEntry } from "./src/computer";
 import { ComputerDraftProvider } from "./src/computer-drafts";
 import { Details } from "./src/details";
@@ -140,14 +139,6 @@ export default function App() {
         </SafeAreaView>
       )}
     </SafeAreaProvider>
-  );
-}
-function AppsAndPlansScreen() {
-  return (
-    <View style={{ gap: 22 }}>
-      <PlanCatalog />
-      <AppsScreen />
-    </View>
   );
 }
 function WorkspaceApp({ token }: { token: string }) {
