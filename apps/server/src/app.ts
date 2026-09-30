@@ -29,6 +29,7 @@ import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
 import { O1MissionStore } from "./o1/mission-store.ts";
 import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
+import { O1AuditLedger } from "./o1/audit-ledger.ts";
 
 export async function createApp(
   db: Store,
@@ -54,7 +55,8 @@ export async function createApp(
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const o1 = await createO1Platform(config);
   const connectorBus = new ConnectorBus();
-  const connectorActions = new ConnectorActionService(db, connectorBus);
+  const audit = new O1AuditLedger(db);
+  const connectorActions = new ConnectorActionService(db, connectorBus, Date.now, audit);
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true);
@@ -158,6 +160,7 @@ export async function createApp(
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
+  app.get("/api/o1/audit", async (c) => c.json(await audit.list(c.get("owner"), Number(c.req.query("limit") ?? "200"))));
   app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
   app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
   app.post("/api/o1/computers", async (c) => {
