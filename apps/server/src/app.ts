@@ -24,6 +24,7 @@ import { createO1Platform } from "./o1/index.ts";
 import { ImessageConnector } from "./o1/connectors/imessage.ts";
 import { ConnectorBus } from "./o1/connector-bus.ts";
 import { ConnectorActionService } from "./o1/connector-actions.ts";
+import { modeLabel, type PermissionMode } from "./o1/permissions.ts";
 
 export async function createApp(
   db: Store,
