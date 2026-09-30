@@ -11,5 +11,5 @@ test("ask for approval allows explicit human approval", () => {
 });
 
 test("full access authorizes writes", () => {
-  expect(evaluatePermissionMode("full_access","destructive").decision).toBe("allow");
+  expect(evaluatePermissionMode("approve_for_me","destructive").decision).toBe("allow");
 });
