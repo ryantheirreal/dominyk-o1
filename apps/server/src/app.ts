@@ -289,7 +289,7 @@ export async function createApp(
     return c.json(value);
   });
   app.get("/api/o1/connector-actions", async (c) => {
-    return c.json(await db.list(c.get("owner"), "o1-connector-actions"));
+    return c.json(await connectorActions.list(c.get("owner")));
   });
   app.post("/api/o1/connector-actions", async (c) => {
     const body = z.object({
