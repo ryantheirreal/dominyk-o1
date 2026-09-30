@@ -31,6 +31,7 @@ import { O1MissionStore } from "./o1/mission-store.ts";
 import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
 import { routeModel } from "./o1/model-router.ts";
 import { O1RunPreferencesService } from "./o1/run-preferences.ts";
+import { O1ComputerUseRunner } from "./o1/openai-computer-runner.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
 import { O1AgentRegistry } from "./o1/agent-registry.ts";
 import { O1HandoffService } from "./o1/agent-handoff.ts";
@@ -223,6 +224,17 @@ export async function createApp(
   });
   app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
   app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
+  app.post("/api/o1/computer-use/run", async (c) => {
+    if (!o1.computerUseClient || !o1.computerFabric?.persistentGateway)
+      throw new AppError("Hosted Computer Use is not configured with a persistent O1 computer gateway", 503);
+    const body = z.object({ computerId: z.string().min(1).max(128), prompt: z.string().trim().min(1).max(20000), maxTurns: z.number().int().min(1).max(100).optional() }).parse(await c.req.json());
+    const session = await computers.get(c.get("owner"), body.computerId);
+    const permission = await db.get<{ mode?: string }>(c.get("owner"), "o1-settings", "permissions");
+    const runner = new O1ComputerUseRunner(o1.computerUseClient, o1.computerFabric.persistentGateway);
+    const result = await runner.run({ computerId: session.providerId, prompt: body.prompt, maxTurns: body.maxTurns, permissionMode: permission?.mode });
+    await audit.record({ owner: c.get("owner"), category: "computer", action: "cua_run", targetId: body.computerId, data: { status: result.status, responseId: result.responseId } });
+    return c.json(result);
+  });
   app.post("/api/o1/computers", async (c) => {
     const body = z.object({ name: z.string().trim().min(1).max(63), image: z.string().trim().max(128).optional(), region: z.string().trim().max(64).optional(), size: z.string().trim().max(64).optional() }).parse(await c.req.json());
     await requireComputerPermission(c.get("owner"), "write");
