@@ -53,6 +53,7 @@ import {
 } from "./ui";
 import { useWorkspace } from "./workspace";
 import { PlanCatalog } from "./plan-catalog";
+import { BenchmarkCenter } from "./benchmark-center";
 
 export function statusLabel(value: string) {
   return value.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
@@ -193,6 +194,7 @@ export function AgentActivityScreen() {
     <View style={{ gap: 20 }}>
       <AgentStatus />
       <CommandCenterCard />
+      <BenchmarkCenter />
       <AgentRoster />
       <View style={[s.row, { gap: 8 }]}>
         {["All", "In progress", "Finished"].map((item) => (
