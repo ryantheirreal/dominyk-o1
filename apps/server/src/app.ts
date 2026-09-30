@@ -161,6 +161,32 @@ export async function createApp(
     }).parse(await c.req.json());
     return c.json(o1.buildMission(body), 201);
   });
+  app.post("/api/o1/imessage/send", async (c) => {
+    const body = z.object({
+      chatId: z.string().min(1).max(1024),
+      text: z.string().min(1).max(10000),
+      approved: z.boolean().default(false),
+    }).parse(await c.req.json());
+    const owner = c.get("owner");
+    const decision = o1.authorizeTool({
+      actorId: owner,
+      tool: "imessage.send",
+      risk: "external",
+      target: "imessage",
+      explicitApproval: body.approved,
+    });
+    if (decision.decision !== "allow")
+      throw new AppError(decision.reason, 409);
+    const result = await new ImessageConnector().send(body.chatId, body.text, true);
+    await db.put(owner, "o1-activity", {
+      id: randomUUID(),
+      type: "imessage.send",
+      status: "succeeded",
+      at: new Date().toISOString(),
+      result: { textSent: Boolean(result.text_sent), attachmentSent: Boolean(result.attachment_sent) },
+    });
+    return c.json({ ok: true, result: { textSent: Boolean(result.text_sent), attachmentSent: Boolean(result.attachment_sent) } }, 201);
+  });
   app.get("/api/o1/imessage/messages", async (c) => {
     const after = c.req.query("after");
     if (after !== undefined && (!/^\\d+$/.test(after) || Number(after) > Number.MAX_SAFE_INTEGER))
