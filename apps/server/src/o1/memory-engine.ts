@@ -38,11 +38,13 @@ export class O1MemoryEngine {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
     const memories = await this.db.list<O1Memory>(owner, "o1-memory");
     const filtered = memories.filter((memory) => !options.scopes?.length || options.scopes.includes(memory.scope));
-    return filtered
+    const selected = filtered
       .map((memory) => ({ memory, score: terms.length ? terms.reduce((score, term) => score + (memory.text.toLowerCase().includes(term) ? 2 : 0) + (memory.source.toLowerCase().includes(term) ? 1 : 0), 0) + memory.confidence + memory.relevance : memory.confidence + memory.relevance }))
       .sort((a, b) => b.score - a.score || b.memory.updatedAt.localeCompare(a.memory.updatedAt))
       .slice(0, Math.max(1, Math.min(options.limit ?? 12, 50)))
       .map((item) => ({ ...item.memory, lastAccessedAt: new Date().toISOString() }));
+    await Promise.all(selected.map((memory) => this.db.put(owner, "o1-memory", memory)));
+    return selected;
   }
 
   async forget(owner: string, id: string) {
