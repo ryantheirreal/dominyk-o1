@@ -218,7 +218,7 @@ export async function createApp(
   app.get("/api/o1/benchmarks/summary", async (c) => c.json(await benchmarks.summary(c.get("owner"), c.req.query("suite"))));
   app.post("/api/o1/benchmarks", async (c) => {
     const body = z.object({ id: z.string().min(1).max(128), suite: z.string().min(1).max(128), taskId: z.string().min(1).max(128), modelId: z.string().max(128).optional(), success: z.boolean(), verified: z.boolean(), durationMs: z.number().int().nonnegative(), cost: z.number().nonnegative().optional(), interventions: z.number().int().nonnegative(), recoveryCount: z.number().int().nonnegative() }).parse(await c.req.json());
-    return c.json(await benchmarks.record({ owner: c.get("owner"), ...body } as never), 201);
+    return c.json(await benchmarks.record({ owner: c.get("owner"), ...body }), 201);
   });
   app.get("/api/o1/agents", async (c) => c.json(await agentRegistry.list(c.get("owner"))));
   app.get("/api/o1/handoffs", async (c) => c.json(await handoffs.list(c.get("owner"))));
