@@ -4,7 +4,7 @@ import { AppError } from "../errors.ts";
 export interface ModelRouteRequest {
   planId: O1PlanId;
   effort: number;
-  modelId?: O1PlanModelId;
+  modelId?: string;
   complexity?: number;
 }
 
@@ -17,6 +17,7 @@ export interface ModelRoute {
 
 export function routeModel(input: ModelRouteRequest): ModelRoute {
   const plan = getO1Plan(input.planId);
+  if (!plan || plan.id !== input.planId) throw new AppError("Unknown O1 plan", 422);
   if (!Number.isInteger(input.effort) || input.effort < 1 || input.effort > plan.unlockedEfforts)
     throw new AppError(`Effort ${input.effort} is not unlocked for the ${plan.name} plan`, 403);
   if (input.modelId) {
