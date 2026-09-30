@@ -39,6 +39,7 @@ import { O1HandoffService } from "./o1/agent-handoff.ts";
 import { classifyFailure, decideRecovery } from "./o1/recovery-engine.ts";
 import { O1RoutineService } from "./o1/routines.ts";
 import { O1RoutineDispatcher } from "./o1/routine-dispatcher.ts";
+import { O1RoutineScheduler } from "./o1/routine-scheduler.ts";
 import { O1EventRouter } from "./o1/event-router.ts";
 import { O1MemoryEngine } from "./o1/memory-engine.ts";
 import { O1CommandCenterService } from "./o1/command-center.ts";
@@ -72,6 +73,7 @@ export async function createApp(
   const computer = new ComputerService(db, config, options.docker);
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
   const routineDispatcher = new O1RoutineDispatcher(db, agent, audit);
+  const routineScheduler = new O1RoutineScheduler(db, agent, audit);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const o1 = await createO1Platform(config);
