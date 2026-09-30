@@ -182,6 +182,26 @@ export async function createApp(
     });
     return c.json({ approvalRequired:true, action }, 201);
   });
+  app.get("/api/o1/permissions", async (c) => {
+    const current = await db.get<any>(c.get("owner"), "o1-settings", "permissions");
+    return c.json(current ?? { id:"permissions", mode:"ask_codex", updatedAt:new Date(0).toISOString() });
+  });
+  app.put("/api/o1/permissions", async (c) => {
+    const body = z.object({
+      mode: z.enum(["ask_codex","ask_approval","full_access"]),
+      confirm: z.boolean().default(false),
+    }).parse(await c.req.json());
+    if (body.mode === "full_access" && !body.confirm)
+      throw new AppError("Explicit confirmation is required", 409);
+    const value = {
+      id:"permissions",
+      mode:body.mode as PermissionMode,
+      label:modeLabel(body.mode as PermissionMode),
+      updatedAt:new Date().toISOString(),
+    };
+    await db.put(c.get("owner"),"o1-settings",value);
+    return c.json(value);
+  });
   app.get("/api/o1/connector-actions", async (c) => {
     return c.json(await db.list(c.get("owner"), "o1-connector-actions"));
   });
