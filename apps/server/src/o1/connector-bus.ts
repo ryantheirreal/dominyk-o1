@@ -11,7 +11,7 @@ export type ConnectorOperation =
   | "discord.me"
   | "discord.send_message"
   | "notion.search"
-  | "imessage.list_messages"
+  | "imessage.list_messages" | "imessage.get_attachment"
   | "imessage.send";
 
 const READ_OPS = new Set<ConnectorOperation>([
@@ -22,6 +22,7 @@ const READ_OPS = new Set<ConnectorOperation>([
   "discord.me",
   "notion.search",
   "imessage.list_messages",
+  "imessage.get_attachment",
 ]);
 
 const allowedHosts: Record<string, string> = {
@@ -130,6 +131,12 @@ export class ConnectorBus {
           method:"POST",headers:{"Content-Type":"application/json",...headers("notion")},
           body:JSON.stringify({query:String(p.query ?? "")}),
         })).json();
+      case "imessage.get_attachment": {
+        const index=Number(p.index ?? -1);
+        if(!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative integer");
+        const result=await new ImessageConnector().attachment(String(p.messageGuid ?? ""),index);
+        return { contentType:result.contentType, bytes:result.bytes };
+      }
       case "imessage.list_messages": {
         const after=p.after === undefined ? undefined : Number(p.after);
         if(after !== undefined && (!Number.isSafeInteger(after) || after < 0))
