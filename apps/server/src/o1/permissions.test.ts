@@ -1,9 +1,13 @@
 import { test, expect } from "node:test";
 import { evaluatePermissionMode } from "./permissions.ts";
 
-test("ask codex is read-only", () => {
-  expect(evaluatePermissionMode("ask_codex","read").decision).toBe("allow");
-  expect(evaluatePermissionMode("ask_codex","write").decision).toBe("ask");
+test("ask o1 is read-only", () => {
+  expect(evaluatePermissionMode("ask_o1","read").decision).toBe("allow");
+  expect(evaluatePermissionMode("ask_o1","write").decision).toBe("ask");
+});
+
+ test("legacy stored mode normalizes to O1", () => {
+  expect(evaluatePermissionMode("ask_codex", "write").decision).toBe("ask");
 });
 
 test("ask for approval allows explicit human approval", () => {
