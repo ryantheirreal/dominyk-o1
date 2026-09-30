@@ -150,12 +150,13 @@ export function readConfig(): Config {
       process.env.ALLOWED_ORIGINS ?? "http://localhost:8081,http://127.0.0.1:8081"
     ).split(","),
   };
-  if (
-    mode === "live" &&
-    (!config.encryptionKey || ((!config.accessKey || config.accessKey.length < 24) && config.accessIdentities?.every((item) => item.key.length < 24)))
-  )
+  const hasValidAccessKey = Boolean(config.accessKey && config.accessKey.length >= 24);
+  const hasValidAccessIdentity = Boolean(
+    config.accessIdentities?.some((item) => item.key.length >= 24),
+  );
+  if (mode === "live" && (!config.encryptionKey || (!hasValidAccessKey && !hasValidAccessIdentity)))
     throw new Error(
-      "Live mode requires O1_ACCESS_KEY (24+ characters) or O1_ACCESS_KEYS_JSON with valid 24+ character keys, plus TOKEN_ENCRYPTION_KEY.",
+      "Live mode requires O1_ACCESS_KEY (24+ characters) or O1_ACCESS_KEYS_JSON with at least one valid 24+ character key, plus TOKEN_ENCRYPTION_KEY.",
     );
   if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
     throw new Error("Sample O1 workspace is local-only. HOST must be a loopback address.");
