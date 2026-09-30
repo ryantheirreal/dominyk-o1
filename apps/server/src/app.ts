@@ -37,6 +37,8 @@ import { O1AgentRegistry } from "./o1/agent-registry.ts";
 import { O1HandoffService } from "./o1/agent-handoff.ts";
 import { classifyFailure, decideRecovery } from "./o1/recovery-engine.ts";
 import { O1RoutineService } from "./o1/routines.ts";
+import { O1CommandCenterService } from "./o1/command-center.ts";
+import { O1BenchmarkEngine } from "./o1/benchmark-engine.ts";
 
 export async function createApp(
   db: Store,
@@ -48,6 +50,8 @@ export async function createApp(
   const agentRegistry = new O1AgentRegistry(db, audit);
   const handoffs = new O1HandoffService(db, audit);
   const routines = new O1RoutineService(db, audit);
+  const commandCenter = new O1CommandCenterService(db);
+  const benchmarks = new O1BenchmarkEngine(db, audit);
   const auth = await createAuth(db, config, audit),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
@@ -173,6 +177,14 @@ export async function createApp(
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
+  app.get("/api/o1/command-center", async (c) => c.json(await commandCenter.snapshot(c.get("owner"))));
+  app.get("/api/o1/computer-runs", async (c) => c.json(await db.list(c.get("owner"), "o1-computer-runs")));
+  app.get("/api/o1/benchmarks", async (c) => c.json(await db.list(c.get("owner"), "o1-benchmarks")));
+  app.get("/api/o1/benchmarks/summary", async (c) => c.json(await benchmarks.summary(c.get("owner"), c.req.query("suite"))));
+  app.post("/api/o1/benchmarks", async (c) => {
+    const body = z.object({ id: z.string().min(1).max(128), suite: z.string().min(1).max(128), taskId: z.string().min(1).max(128), modelId: z.string().max(128).optional(), success: z.boolean(), verified: z.boolean(), durationMs: z.number().int().nonnegative(), cost: z.number().nonnegative().optional(), interventions: z.number().int().nonnegative(), recoveryCount: z.number().int().nonnegative() }).parse(await c.req.json());
+    return c.json(await benchmarks.record({ owner: c.get("owner"), ...body } as never), 201);
+  });
   app.get("/api/o1/agents", async (c) => c.json(await agentRegistry.list(c.get("owner"))));
   app.get("/api/o1/handoffs", async (c) => c.json(await handoffs.list(c.get("owner"))));
   app.post("/api/o1/handoffs", async (c) => {
