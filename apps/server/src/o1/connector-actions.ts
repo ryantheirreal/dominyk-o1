@@ -3,6 +3,7 @@ import type { Store } from "../db.ts";
 import { AppError } from "../errors.ts";
 import { ConnectorBus, type ConnectorOperation } from "./connector-bus.ts";
 import { evaluatePermissionMode, normalizePermissionMode, type PermissionMode } from "./permissions.ts";
+import type { O1AuditLedger } from "./audit-ledger.ts";
 
 export interface ConnectorAction {
   id: string;
@@ -27,6 +28,7 @@ export class ConnectorActionService {
     private readonly db: Store,
     private readonly bus: ConnectorBus,
     private readonly now = Date.now,
+    private readonly audit?: O1AuditLedger,
   ) {}
 
   async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>, mode?: PermissionMode) {
@@ -45,10 +47,13 @@ export class ConnectorActionService {
       expiresAt:new Date(this.now()+30*60*1000).toISOString(),
     };
     await this.db.put(owner,"o1-connector-actions",action);
+    await this.audit?.record({ owner, category: "connector", action: "proposed", targetId: id, data: { operation, payload, hash } });
     if (permission.decision === "allow") {
       try {
         const result=await this.bus.execute({ actorId:owner, operation, payload, approved:true });
-        return this.db.put(owner,"o1-connector-actions",{...action,status:"succeeded",result});
+        const succeeded={...action,status:"succeeded" as const,result};
+        await this.audit?.record({ owner, category: "connector", action: "succeeded", targetId: id, data: { operation, result } });
+        return this.db.put(owner,"o1-connector-actions",succeeded);
       } catch (error) {
         const uncertain=isUncertainOutcome(error);
       }
@@ -68,6 +73,7 @@ export class ConnectorActionService {
     }
     if(decision==="deny") {
       const denied={...action,status:"denied" as const};
+      await this.audit?.record({ owner, category: "connector", action: "denied", targetId: id, data: { operation: action.operation } });
       await this.db.put(owner,"o1-connector-actions",denied);
       return denied;
     }
@@ -81,11 +87,13 @@ export class ConnectorActionService {
         approved:true,
       });
       const succeeded={...executing,status:"succeeded" as const,result};
+      await this.audit?.record({ owner, category: "connector", action: "succeeded", targetId: id, data: { operation: action.operation, result } });
       await this.db.put(owner,"o1-connector-actions",succeeded);
       return succeeded;
     } catch(error) {
       const uncertain=isUncertainOutcome(error);
       const failed={...executing,status:uncertain?"outcome_unknown" as const:"failed" as const,error:error instanceof Error?error.message:"Connector execution failed"};
+      await this.audit?.record({ owner, category: "connector", action: failed.status, targetId: id, data: { operation: action.operation, error: failed.error } });
       await this.db.put(owner,"o1-connector-actions",failed);
       return failed;
     }
