@@ -1,5 +1,4 @@
 export type PermissionMode = "ask_o1" | "ask_approval" | "approve_for_me";
-export type LegacyPermissionMode = PermissionMode | "ask_codex";
 
 export interface PermissionSettings {
   mode: PermissionMode;
@@ -11,8 +10,9 @@ export function defaultPermissionSettings(): PermissionSettings {
   return { mode: "ask_o1", updatedAt: new Date(0).toISOString() };
 }
 
-export function normalizePermissionMode(mode?: LegacyPermissionMode): PermissionMode {
-  return mode === "ask_codex" ? "ask_o1" : mode ?? "ask_o1";
+export function normalizePermissionMode(mode?: string): PermissionMode {
+  if (mode === "ask_approval" || mode === "approve_for_me") return mode;
+  return "ask_o1";
 }
 
 export function modeLabel(mode: PermissionMode) {
@@ -22,7 +22,7 @@ export function modeLabel(mode: PermissionMode) {
 }
 
 export function evaluatePermissionMode(
-  mode: LegacyPermissionMode,
+  mode: string,
   risk: "read" | "write" | "sensitive" | "external" | "destructive",
   explicitApproval = false,
 ) {
