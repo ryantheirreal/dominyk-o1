@@ -32,6 +32,7 @@ import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
 import { routeModel } from "./o1/model-router.ts";
 import { O1RunPreferencesService } from "./o1/run-preferences.ts";
 import { O1ComputerUseRunner } from "./o1/openai-computer-runner.ts";
+import { O1ComputerRunStore } from "./o1/computer-run-store.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
 import { O1AgentRegistry } from "./o1/agent-registry.ts";
 import { O1HandoffService } from "./o1/agent-handoff.ts";
@@ -75,6 +76,7 @@ export async function createApp(
   const missions = new O1MissionStore(db, undefined, audit);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.persistentProvider, o1.computerFabric?.persistentGateway, config.computerProvisioningEnabled === true, audit);
   const runPreferences = new O1RunPreferencesService(db, entitlements, audit);
+  const computerRuns = new O1ComputerRunStore(db);
   async function requireComputerPermission(owner: string, risk: "write" | "destructive") {
     const settings = await db.get<{ mode?: string }>(owner, "o1-settings", "permissions");
     const decision = evaluatePermissionMode(normalizePermissionMode(settings?.mode), risk);
@@ -179,6 +181,39 @@ export async function createApp(
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/command-center", async (c) => c.json(await commandCenter.snapshot(c.get("owner"))));
   app.get("/api/o1/computer-runs", async (c) => c.json(await db.list(c.get("owner"), "o1-computer-runs")));
+  app.post("/api/o1/computer-use/runs/:id/resume", async (c) => {
+    if (!o1.computerUseClient || !o1.computerFabric?.persistentGateway)
+      throw new AppError("Hosted Computer Use is not configured with a persistent O1 computer gateway", 503);
+    const body = z.object({ confirm: z.literal(true), maxTurns: z.number().int().min(1).max(100).optional() }).parse(await c.req.json());
+    const run = await computerRuns.get(c.get("owner"), c.req.param("id"));
+    if (!run) throw new AppError("Computer run not found", 404);
+    if (run.status !== "waiting_approval" || !run.lastCall)
+      throw new AppError("Computer run is not waiting for approval", 409);
+    const session = await computers.get(c.get("owner"), run.computerId);
+    const runner = new O1ComputerUseRunner(o1.computerUseClient, o1.computerFabric.persistentGateway);
+    const result = await runner.run({
+      runId: run.id,
+      computerId: session.providerId,
+      prompt: run.prompt,
+      maxTurns: body.maxTurns,
+      permissionMode: "approve_for_me",
+      approvalGranted: body.confirm,
+      resume: { responseId: run.responseId, call: run.lastCall },
+      checkpoint: async (state) => {
+        await computerRuns.upsert(c.get("owner"), run.id, {
+          computerId: run.computerId,
+          prompt: run.prompt,
+          responseId: state.responseId,
+          turn: state.turn,
+          status: state.status,
+          callId: state.call?.callId,
+          lastCall: state.call,
+        });
+      },
+    });
+    await audit.record({ owner: c.get("owner"), category: "computer", action: "cua_run_resumed", targetId: run.id, data: { status: result.status } });
+    return c.json({ runId: run.id, result });
+  });
   app.get("/api/o1/benchmarks", async (c) => c.json(await db.list(c.get("owner"), "o1-benchmarks")));
   app.get("/api/o1/benchmarks/summary", async (c) => c.json(await benchmarks.summary(c.get("owner"), c.req.query("suite"))));
   app.post("/api/o1/benchmarks", async (c) => {
@@ -237,10 +272,41 @@ export async function createApp(
     const body = z.object({ computerId: z.string().min(1).max(128), prompt: z.string().trim().min(1).max(20000), maxTurns: z.number().int().min(1).max(100).optional() }).parse(await c.req.json());
     const session = await computers.get(c.get("owner"), body.computerId);
     const permission = await db.get<{ mode?: string }>(c.get("owner"), "o1-settings", "permissions");
+    const runId = randomUUID();
     const runner = new O1ComputerUseRunner(o1.computerUseClient, o1.computerFabric.persistentGateway);
-    const result = await runner.run({ computerId: session.providerId, prompt: body.prompt, maxTurns: body.maxTurns, permissionMode: permission?.mode });
-    await audit.record({ owner: c.get("owner"), category: "computer", action: "cua_run", targetId: body.computerId, data: { status: result.status, responseId: result.responseId } });
-    return c.json(result);
+    let result;
+    try {
+      result = await runner.run({
+        runId,
+        computerId: session.providerId,
+        prompt: body.prompt,
+        maxTurns: body.maxTurns,
+        permissionMode: permission?.mode,
+        checkpoint: async (state) => {
+          await computerRuns.upsert(c.get("owner"), runId, {
+            computerId: body.computerId,
+            prompt: body.prompt,
+            responseId: state.responseId,
+            turn: state.turn,
+            status: state.status,
+            callId: state.call?.callId,
+            lastCall: state.call,
+          });
+        },
+      });
+    } catch (error) {
+      await computerRuns.upsert(c.get("owner"), runId, {
+        computerId: body.computerId,
+        prompt: body.prompt,
+        responseId: "unknown",
+        turn: 0,
+        status: "outcome_unknown",
+        error: error instanceof Error ? error.message : "Computer Use failed",
+      }).catch(() => {});
+      throw error;
+    }
+    await audit.record({ owner: c.get("owner"), category: "computer", action: "cua_run", targetId: body.computerId, data: { runId, status: result.status, responseId: result.responseId } });
+    return c.json({ runId, result });
   });
   app.post("/api/o1/computers", async (c) => {
     const body = z.object({ name: z.string().trim().min(1).max(63), image: z.string().trim().max(128).optional(), region: z.string().trim().max(64).optional(), size: z.string().trim().max(64).optional() }).parse(await c.req.json());
