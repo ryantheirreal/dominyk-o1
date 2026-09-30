@@ -22,6 +22,7 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit:o1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --dir apps/worker typecheck
