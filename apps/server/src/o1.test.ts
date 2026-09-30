@@ -17,9 +17,13 @@ test("policy is fail-closed for destructive actions", () => {
   expect(evaluatePolicy({ actorId:"u", tool:"delete_repository", risk:"destructive", explicitApproval:true }).decision).toBe("allow");
 });
 
-test("mission builder creates sequential checkpoints", () => {
+test("mission builder keeps independent capabilities parallel", () => {
   const result = buildMission({ id:"m1", goal:"ship", capabilities:["mission-governor","code-review"], qualityScore:0.5 });
   expect(result.plan.phases.some((phase) => phase.mode === "verification" && phase.capability === "mission-governor")).toBe(true);
+  const codeReview = result.plan.phases.find((phase) => phase.capability === "code-review");
+  const governor = result.plan.phases.find((phase) => phase.capability === "mission-governor");
+  expect(codeReview?.dependsOn ?? []).toEqual([]);
+  expect(governor?.dependsOn ?? []).toEqual([]);
   expect(result.plan.phases.length).toBeGreaterThan(2);
   expect(result.events[0].type).toBe("mission.created");
 });
