@@ -55,8 +55,6 @@ export async function createApp(
   const handoffs = new O1HandoffService(db, audit);
   const routines = new O1RoutineService(db, audit);
   const memory = new O1MemoryEngine(db, audit);
-  const routineDispatcher = new O1RoutineDispatcher(db, agent, audit);
-  const eventRouter = new O1EventRouter(db, audit);
   const commandCenter = new O1CommandCenterService(db);
   const benchmarks = new O1BenchmarkEngine(db, audit);
   const auth = await createAuth(db, config, audit),
@@ -73,6 +71,7 @@ export async function createApp(
   const browser = new BrowserService(db, config, auth, files);
   const computer = new ComputerService(db, config, options.docker);
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
+  const routineDispatcher = new O1RoutineDispatcher(db, agent, audit);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const o1 = await createO1Platform(config);
@@ -193,7 +192,7 @@ export async function createApp(
   app.post("/api/o1/events", async (c) => {
     const body = z.object({ source: z.string().min(1).max(128), event: z.string().min(1).max(256), payload: z.record(z.string(), z.unknown()).default({}), at: z.string().datetime().optional() }).parse(await c.req.json());
     const event = { source: body.source, event: body.event, payload: body.payload, at: body.at ?? new Date().toISOString() };
-    return c.json({ queued: await routineDispatcher.dispatchEvent(c.get("owner"), event), matches: await eventRouter.dispatch(c.get("owner"), event) });
+    return c.json({ queued: await routineDispatcher.dispatchEvent(c.get("owner"), event) });
   });
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/command-center", async (c) => c.json(await commandCenter.snapshot(c.get("owner"))));
