@@ -34,7 +34,7 @@ export function computerTools(
         try {
           await options.before?.();
           const configuredMode = typeof options.permissionMode === "function" ? await options.permissionMode() : options.permissionMode;
-          const decision = evaluatePermissionMode(configuredMode ?? "ask_codex", risk);
+          const decision = evaluatePermissionMode(configuredMode ?? "ask_o1", risk);
           if (decision.decision !== "allow") return { error: decision.reason, approvalRequired: true };
           return await action(parameters.parse(args));
         } catch (error) {
