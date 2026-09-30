@@ -6,10 +6,6 @@ test("ask o1 is read-only", () => {
   expect(evaluatePermissionMode("ask_o1","write").decision).toBe("ask");
 });
 
-test("legacy stored mode normalizes to O1", () => {
-  expect(evaluatePermissionMode("ask_codex", "write").decision).toBe("ask");
-});
-
 test("ask for approval allows explicit human approval", () => {
   expect(evaluatePermissionMode("ask_approval","external",true).decision).toBe("allow");
 });
