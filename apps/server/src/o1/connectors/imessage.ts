@@ -47,13 +47,13 @@ export class ImessageConnector {
     return (await response.json()) as ImessageMessage[];
   }
 
-  async send(chatId: string, text: string, confirmation = false) {
+  async send(chatId: string, text: string, confirmation = false, attachment?: { path?: string; b64?: string; name?: string }) {
     this.assertConfigured();
     if (!confirmation) throw new Error("iMessage send requires explicit O1 approval");
     const response = await fetch(this.baseUrl + "/send", {
       method:"POST",
       headers:{ ...this.headers(), "Content-Type":"application/json" },
-      body:JSON.stringify({ chat_id:chatId, text }),
+      body:JSON.stringify({ chat_id:chatId, text, ...(attachment?.path ? { attachment_path: attachment.path } : {}), ...(attachment?.b64 ? { attachment_b64: attachment.b64, attachment_name: attachment.name ?? "image" } : {}) }),
       signal:AbortSignal.timeout(20000),
     });
     const payload = await response.json().catch(() => ({}));
@@ -61,3 +61,15 @@ export class ImessageConnector {
     return payload as { status:string; attachment_sent?:boolean; text_sent?:boolean };
   }
 }
+
+  async attachment(messageGuid: string, index: number) {
+    this.assertConfigured();
+    if (!Number.isSafeInteger(index) || index < 0) throw new Error("attachment index must be a non-negative integer");
+    const url=this.baseUrl + "/attachment?msg=" + encodeURIComponent(messageGuid) + "&index=" + index;
+    const response=await fetch(url,{headers:this.headers(),signal:AbortSignal.timeout(15000)});
+    if(!response.ok) throw new Error("iMessage attachment read failed (" + response.status + ")");
+    return {
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      bytes: await response.arrayBuffer(),
+    };
+  }
