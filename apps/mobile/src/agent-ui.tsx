@@ -52,6 +52,7 @@ import {
   s,
 } from "./ui";
 import { useWorkspace } from "./workspace";
+import { PlanCatalog } from "./plan-catalog";
 
 export function statusLabel(value: string) {
   return value.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
@@ -1147,6 +1148,7 @@ export function GoalsScreen() {
   return (
     <View style={{ gap: 22 }}>
       <AgentStatus />
+      <PlanCatalog />
       <View style={{ gap: 8 }}>
         <View style={[s.between, { marginBottom: 5 }]}>
           <View style={[s.row, { gap: 10 }]}>
