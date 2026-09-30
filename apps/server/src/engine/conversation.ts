@@ -95,7 +95,7 @@ export class ConversationAgent extends AbstractAgent {
     const connectorBus = new ConnectorBus();
     const connectorActions = new ConnectorActionService(this.service.db, connectorBus);
     const tools = [
-      ...computerTools(this.service.computer, this.service.files, this.owner, `chat:${requestKey}`),
+      ...computerTools(this.service.computer, this.service.files, this.owner, `chat:${requestKey}`, { permissionMode: async () => (await this.service.db.get<{ mode?: "ask_codex" | "ask_approval" | "approve_for_me" }>(this.owner, "o1-settings", "permissions"))?.mode ?? "ask_codex" }),
       defineTool({
         name: "search_mail",
         description:
