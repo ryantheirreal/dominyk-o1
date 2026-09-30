@@ -8,6 +8,7 @@ export interface PolicyInput {
   target?: string;
   explicitApproval?: boolean;
   dryRun?: boolean;
+  permissionMode?: PermissionMode;
 }
 
 export interface PolicyResult {
@@ -24,6 +25,10 @@ export function evaluatePolicy(input: PolicyInput): PolicyResult {
   if (!input.actorId) return { decision:"deny", reason:"Missing actor identity", auditClass:input.risk };
   if (input.target && blockedTargets.has(input.target)) return { decision:"deny", reason:"Target is blocked by O1 egress policy", auditClass:input.risk };
   if (input.dryRun) return { decision:"allow", reason:"Dry-run does not dispatch an external action", auditClass:"read" };
+  if (input.permissionMode) {
+    const modeDecision = evaluatePermissionMode(input.permissionMode, input.risk, Boolean(input.explicitApproval));
+    if (modeDecision.decision !== "allow") return { decision:"ask", reason:modeDecision.reason, auditClass:input.risk };
+  }
   if (input.risk === "destructive" || destructiveTools.test(input.tool)) {
     return input.explicitApproval
       ? { decision:"allow", reason:"Explicit approval supplied for destructive action", auditClass:"destructive" }
