@@ -99,6 +99,12 @@ export async function createApp(
       502,
     );
   });
+  // O1 routes are declared before the general /api middleware below; protect them explicitly here.
+  app.use("/api/o1/*", async (c, next) => {
+    const owner = await auth.owner(c.req.header("authorization"));
+    c.set("owner", owner);
+    await next();
+  });
   app.get("/api/health", (c) =>
     c.json({
       ok: true,
