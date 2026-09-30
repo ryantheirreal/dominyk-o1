@@ -1,4 +1,5 @@
-export type PermissionMode = "ask_codex" | "ask_approval" | "approve_for_me";
+export type PermissionMode = "ask_o1" | "ask_approval" | "approve_for_me";
+export type LegacyPermissionMode = PermissionMode | "ask_codex";
 
 export interface PermissionSettings {
   mode: PermissionMode;
@@ -7,22 +8,27 @@ export interface PermissionSettings {
 }
 
 export function defaultPermissionSettings(): PermissionSettings {
-  return { mode: "ask_codex", updatedAt: new Date(0).toISOString() };
+  return { mode: "ask_o1", updatedAt: new Date(0).toISOString() };
+}
+
+export function normalizePermissionMode(mode?: LegacyPermissionMode): PermissionMode {
+  return mode === "ask_codex" ? "ask_o1" : mode ?? "ask_o1";
 }
 
 export function modeLabel(mode: PermissionMode) {
-  if (mode === "ask_codex") return "Ask Codex anything";
+  if (mode === "ask_o1") return "Ask o1 anything";
   if (mode === "ask_approval") return "Ask for approval";
   return "Approve for me / Full access";
 }
 
 export function evaluatePermissionMode(
-  mode: PermissionMode,
+  mode: LegacyPermissionMode,
   risk: "read" | "write" | "sensitive" | "external" | "destructive",
   explicitApproval = false,
 ) {
+  mode = normalizePermissionMode(mode);
   if (risk === "read") return { decision: "allow" as const, reason: "Read-only operation." };
-  if (mode !== "ask_codex" && mode !== "ask_approval") return {
+  if (mode !== "ask_o1" && mode !== "ask_approval") return {
     decision: "allow" as const,
     reason: "Full access is active.",
   };
@@ -32,8 +38,8 @@ export function evaluatePermissionMode(
   };
   return {
     decision: "ask" as const,
-    reason: mode === "ask_codex"
-      ? "This mode never authorizes a write directly."
+    reason: mode === "ask_o1"
+        ? "This mode never authorizes a write directly."
       : "This action requires human approval.",
   };
 }
