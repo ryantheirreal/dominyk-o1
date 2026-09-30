@@ -19,7 +19,7 @@ export class O1CommandCenterService {
     const enabledRoutines = routines.filter((item) => item.enabled === true);
     return {
       counts: { missions: missions.length, activeMissions: activeMissions.length, agents: agents.length, activeAgents: activeAgents.length, computers: computers.length, activeComputers: activeComputers.length, routines: routines.length, enabledRoutines: enabledRoutines.length, pendingApprovals: pendingApprovals.length, auditEvents: audit.length },
-      activeMissions, activeAgents, activeComputers, enabledRoutines, pendingApprovals, recentAudit: audit.slice(0, 30),
+      activeMissions, activeAgents, activeComputers, enabledRoutines, pendingApprovals: pendingApprovals.map((item) => ({ id: item.id, operation: item.operation, status: item.status, createdAt: item.createdAt, expiresAt: item.expiresAt })), recentAudit: audit.slice(0, 30),
       generatedAt: new Date().toISOString(),
     };
   }
