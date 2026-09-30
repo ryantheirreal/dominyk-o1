@@ -38,6 +38,9 @@ import { O1AgentRegistry } from "./o1/agent-registry.ts";
 import { O1HandoffService } from "./o1/agent-handoff.ts";
 import { classifyFailure, decideRecovery } from "./o1/recovery-engine.ts";
 import { O1RoutineService } from "./o1/routines.ts";
+import { O1RoutineDispatcher } from "./o1/routine-dispatcher.ts";
+import { O1EventRouter } from "./o1/event-router.ts";
+import { O1MemoryEngine } from "./o1/memory-engine.ts";
 import { O1CommandCenterService } from "./o1/command-center.ts";
 import { O1BenchmarkEngine } from "./o1/benchmark-engine.ts";
 
@@ -51,6 +54,9 @@ export async function createApp(
   const agentRegistry = new O1AgentRegistry(db, audit);
   const handoffs = new O1HandoffService(db, audit);
   const routines = new O1RoutineService(db, audit);
+  const memory = new O1MemoryEngine(db, audit);
+  const routineDispatcher = new O1RoutineDispatcher(db, agent, audit);
+  const eventRouter = new O1EventRouter(db, audit);
   const commandCenter = new O1CommandCenterService(db);
   const benchmarks = new O1BenchmarkEngine(db, audit);
   const auth = await createAuth(db, config, audit),
@@ -178,6 +184,17 @@ export async function createApp(
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
+  app.get("/api/o1/memory", async (c) => c.json(await memory.retrieve(c.get("owner"), c.req.query("q") ?? "", { limit: Number(c.req.query("limit") ?? "12") })));
+  app.post("/api/o1/memory", async (c) => {
+    const body = z.object({ scope: z.enum(["session","conversation","task","project","user","skill","semantic","episodic"]), text: z.string().trim().min(1).max(4000), source: z.string().trim().min(1).max(512), confidence: z.number().min(0).max(1).optional(), relevance: z.number().min(0).max(1).optional(), provenance: z.object({ type: z.string().min(1).max(128), ref: z.string().max(512).optional() }).optional() }).parse(await c.req.json());
+    return c.json(await memory.remember({ owner: c.get("owner"), ...body }), 201);
+  });
+  app.delete("/api/o1/memory/:id", async (c) => { await memory.forget(c.get("owner"), c.req.param("id")); return c.json({ ok: true }); });
+  app.post("/api/o1/events", async (c) => {
+    const body = z.object({ source: z.string().min(1).max(128), event: z.string().min(1).max(256), payload: z.record(z.string(), z.unknown()).default({}), at: z.string().datetime().optional() }).parse(await c.req.json());
+    const event = { source: body.source, event: body.event, payload: body.payload, at: body.at ?? new Date().toISOString() };
+    return c.json({ queued: await routineDispatcher.dispatchEvent(c.get("owner"), event), matches: await eventRouter.dispatch(c.get("owner"), event) });
+  });
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/command-center", async (c) => c.json(await commandCenter.snapshot(c.get("owner"))));
   app.get("/api/o1/computer-runs", async (c) => c.json(await db.list(c.get("owner"), "o1-computer-runs")));
