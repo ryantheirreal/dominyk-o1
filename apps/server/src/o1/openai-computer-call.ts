@@ -9,11 +9,13 @@ export type O1ComputerCallAction =
   | { type: "keypress"; keys: string[] }
   | { type: "drag"; path: Array<{ x: number; y: number }> };
 
+export interface O1SafetyCheck { id?: string; code?: string; message?: string; }
+
 export interface O1ComputerCall {
   callId: string;
   actions: O1ComputerCallAction[];
   requiresApproval: boolean;
-  safetyChecks?: string[];
+  safetyChecks?: O1SafetyCheck[];
 }
 
 export function parseOpenAIComputerCall(input: unknown): O1ComputerCall {
@@ -25,7 +27,11 @@ export function parseOpenAIComputerCall(input: unknown): O1ComputerCall {
   if (!rawActions.length) throw new Error("Computer call contains no actions");
   const actions = rawActions.map(parseAction);
   const safetyChecks = Array.isArray(value.pending_safety_checks)
-    ? value.pending_safety_checks.filter((item): item is string => typeof item === "string")
+    ? value.pending_safety_checks.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")).map((item) => ({
+        ...(typeof item.id === "string" ? { id: item.id } : {}),
+        ...(typeof item.code === "string" ? { code: item.code } : {}),
+        ...(typeof item.message === "string" ? { message: item.message } : {}),
+      }))
     : [];
   return {
     callId: value.call_id,
