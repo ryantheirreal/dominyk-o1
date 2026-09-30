@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { ComputerAction, ComputerGateway, ComputerObservation } from "./computer-gateway.ts";
 import { executeComputerBatch } from "./computer-batch.ts";
 import type { O1ComputerCall, O1ComputerCallAction } from "./openai-computer-call.ts";
@@ -29,14 +30,30 @@ export class O1ComputerUseRunner {
     private readonly gateway: ComputerGateway,
   ) {}
 
-  async run(input: { prompt: string; permissionMode?: string; maxTurns?: number; computerId: string }): Promise<O1ComputerRunResult> {
+  async run(input: {
+    prompt: string;
+    permissionMode?: string;
+    maxTurns?: number;
+    computerId: string;
+    runId?: string;
+    approvalGranted?: boolean;
+    checkpoint?: (state: { runId: string; responseId: string; turn: number; status: O1ComputerRunResult["status"]; call?: O1ComputerCall }) => Promise<void>;
+  }): Promise<O1ComputerRunResult> {
     const maxTurns = Math.max(1, Math.min(input.maxTurns ?? 20, 100));
+    const runId = input.runId ?? randomUUID();
     let response = await this.client.start(input.prompt);
+    await input.checkpoint?.({ runId, responseId: response.responseId, turn: 0, status: "running", call: response.computerCall });
     for (let turn = 0; turn < maxTurns; turn += 1) {
-      if (!response.computerCall) return { status: "completed", responseId: response.responseId, output: response.output };
+      if (!response.computerCall) {
+        await input.checkpoint?.({ runId, responseId: response.responseId, turn, status: "completed" });
+        return { status: "completed", responseId: response.responseId, output: response.output };
+      }
       const call = response.computerCall;
       const permission = evaluatePermissionMode(normalizePermissionMode(input.permissionMode), "write");
-      if (call.requiresApproval || permission.decision !== "allow") return { status: "waiting_approval", responseId: response.responseId, call };
+      if ((!input.approvalGranted && call.requiresApproval) || permission.decision !== "allow") {
+        await input.checkpoint?.({ runId, responseId: response.responseId, turn, status: "waiting_approval", call });
+        return { status: "waiting_approval", responseId: response.responseId, call };
+      }
       let latest: ComputerObservation | undefined;
       const gatewayActions = call.actions.map(toGatewayAction).filter((action): action is ComputerAction => Boolean(action));
       if (gatewayActions.length) {
@@ -49,7 +66,9 @@ export class O1ComputerUseRunner {
       }
       if (!latest || !latest.screenshotB64) latest = await this.gateway.observe(input.computerId);
       response = await this.client.continueWithScreenshot(response.responseId, call.callId, latest.screenshotB64);
+      await input.checkpoint?.({ runId, responseId: response.responseId, turn: turn + 1, status: "running", call: response.computerCall });
     }
+    await input.checkpoint?.({ runId, responseId: response.responseId, turn: maxTurns, status: "exhausted" });
     return { status: "exhausted", responseId: response.responseId, output: response.output };
   }
 }
