@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Store } from "../db.ts";
 import { AppError } from "../errors.ts";
 import { ConnectorBus, type ConnectorOperation } from "./connector-bus.ts";
+import { evaluatePermissionMode, type PermissionMode } from "./permissions.ts";
 
 export interface ConnectorAction {
   id: string;
@@ -23,18 +24,28 @@ export class ConnectorActionService {
     private readonly now = Date.now,
   ) {}
 
-  async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>) {
+  async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>, mode: PermissionMode = "ask_codex") {
     const id=randomUUID();
     const hash=createHash("sha256").update(JSON.stringify({ operation, payload })).digest("hex");
+    const risk = operation.includes("send") ? "external" as const : "write" as const;
+    const permission = evaluatePermissionMode(mode, risk);
     const action: ConnectorAction={
       id, owner, operation,
       payload,
       hash,
-      status:"awaiting_review",
+      status:permission.decision === "allow" ? "executing" : "awaiting_review",
       createdAt:new Date(this.now()).toISOString(),
       expiresAt:new Date(this.now()+30*60*1000).toISOString(),
     };
     await this.db.put(owner,"o1-connector-actions",action);
+    if (permission.decision === "allow") {
+      try {
+        const result=await this.bus.execute({ actorId:owner, operation, payload, approved:true });
+        return this.db.put(owner,"o1-connector-actions",{...action,status:"succeeded",result});
+      } catch (error) {
+        return this.db.put(owner,"o1-connector-actions",{...action,status:"failed",error:error instanceof Error?error.message:"Connector execution failed"});
+      }
+    }
     return action;
   }
 
