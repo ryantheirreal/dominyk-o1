@@ -13,17 +13,19 @@ export class Auth {
     private readonly signingKey: string,
   ) {}
   async session(accessKey?: string) {
-    if (
-      this.config.mode === "live" &&
-      (!accessKey ||
-        !this.config.accessKey ||
-        !timingSafeEqual(digest(accessKey), digest(this.config.accessKey)))
-    )
-      throw new AppError("Access key is incorrect", 401);
+    let owner = "local-user";
+    if (this.config.mode === "live") {
+      if (!accessKey) throw new AppError("Access key is incorrect", 401);
+      const identities = this.config.accessIdentities ?? [];
+      const matched = identities.find((identity) => timingSafeEqual(digest(accessKey), digest(identity.key)));
+      if (matched) owner = matched.owner;
+      else if (this.config.accessKey && timingSafeEqual(digest(accessKey), digest(this.config.accessKey))) owner = "local-user";
+      else throw new AppError("Access key is incorrect", 401);
+    }
     const token = randomBytes(32).toString("base64url");
     await this.db.put("system", "sessions", {
       id: digest(token).toString("hex"),
-      owner: "local-user",
+      owner,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     });
     return { token, mode: this.config.mode };
