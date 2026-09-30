@@ -325,7 +325,7 @@ export async function createBrowserManager(options: {
     input: (id: string, input: Record<string, unknown>) =>
       serial(id, async () => {
         const { page } = active(id);
-        const { type, x, y, key, text, deltaY } = input;
+        const { type, x, y, key, keys, text, deltaX, deltaY, path } = input;
         if (
           (type === "click" || type === "double_click") &&
           typeof x === "number" &&
@@ -336,25 +336,59 @@ export async function createBrowserManager(options: {
           x < 1280 &&
           y >= 0 &&
           y < 800
-        )
-          type === "double_click" ? await page.mouse.dblclick(x, y) : await page.mouse.click(x, y);
+        ) {
+          const button = type === "double_click" ? "left" : (typeof input.button === "string" ? input.button : "left");
+          if (!["left","right","middle"].includes(button)) throw new WorkerError("INVALID_INPUT", "Unsupported mouse button.");
+          if (type === "double_click") await page.mouse.dblclick(x, y);
+          else await page.mouse.click(x, y, { button: button as "left" | "right" | "middle" });
+        }
         else if (type === "text" && typeof text === "string" && text.length <= 10_000)
           await page.keyboard.insertText(text);
-        else if (
-          type === "key" &&
-          typeof key === "string" &&
-          /^(Enter|Tab|Escape|Backspace|Delete|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown|Control\+a|Meta\+a|Shift\+Tab)$/.test(
-            key,
-          )
-        )
+        else if (type === "key" && typeof key === "string" && key.length <= 64)
           await page.keyboard.press(key);
+        else if (type === "keypress" && Array.isArray(keys) && keys.length > 0 && keys.length <= 8 && keys.every((item) => typeof item === "string" && item.length <= 64))
+          await page.keyboard.press(keys.join("+"));
         else if (
           type === "scroll" &&
           typeof deltaY === "number" &&
+          typeof deltaX === "number" &&
           Number.isFinite(deltaY) &&
-          Math.abs(deltaY) <= 5000
+          Number.isFinite(deltaX) &&
+          Math.abs(deltaY) <= 5000 &&
+          Math.abs(deltaX) <= 5000
         )
-          await page.mouse.wheel(0, deltaY);
+          await page.mouse.wheel(deltaX, deltaY);
+        else if (
+          type === "move" &&
+          typeof x === "number" &&
+          typeof y === "number" &&
+          Number.isFinite(x) &&
+          Number.isFinite(y) &&
+          x >= 0 && x < 1280 && y >= 0 && y < 800
+        )
+          await page.mouse.move(x, y);
+        else if (
+          type === "drag" &&
+          Array.isArray(path) &&
+          path.length >= 2 &&
+          path.length <= 100 &&
+          path.every((point) => point && typeof point === "object" && typeof point.x === "number" && typeof point.y === "number")
+        ) {
+          const points = path as Array<{x:number;y:number}>;
+          await page.mouse.move(points[0].x, points[0].y);
+          await page.mouse.down();
+          try {
+            for (const point of points.slice(1)) {
+              if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.x >= 1280 || point.y < 0 || point.y >= 800)
+                throw new WorkerError("INVALID_INPUT", "Drag coordinates are outside the viewport.");
+              await page.mouse.move(point.x, point.y);
+            }
+          } finally {
+            await page.mouse.up();
+          }
+        }
+        else if (type === "wait")
+          await page.waitForTimeout(250);
         else throw new WorkerError("INVALID_INPUT", "Unsupported browser input or coordinates.");
         return refresh(id);
       }),
