@@ -41,7 +41,7 @@ export class BrowserWorkerGateway implements ComputerGateway {
     else if (action.type === 'key')
       await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'key', key: action.key }) });
     else if (action.type === 'scroll')
-      await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'scroll', deltaY: action.deltaY }) });
+      await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'scroll', deltaX: action.deltaX, deltaY: action.deltaY, x: action.x, y: action.y }) });
     else if (action.type === 'shell')
       throw new Error('Shell execution requires a persistent computer gateway, not the browser worker');
     return this.observe(computerId);
