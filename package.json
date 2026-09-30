@@ -27,7 +27,7 @@
     "start:worker": "node dist/apps/server/src/worker-entry.js",
     "dev:browser": "node --env-file=.env --import tsx apps/worker/src/index.ts",
     "test:computer": "tsx --test apps/computer/smoke.test.ts",
-    "test:o1": "tsx --test apps/server/src/o1.test.ts",
+    "test:o1": "tsx --test apps/server/src/o1.test.ts apps/server/src/o1/*.test.ts",
     "check:o1": "pnpm test:o1 && pnpm typecheck && pnpm build:server"
   },
   "dependencies": {
