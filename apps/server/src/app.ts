@@ -116,6 +116,11 @@ export async function createApp(
     );
   });
   // O1 routes are declared before the general /api middleware below; protect them explicitly here.
+  app.use("/api/o1", async (c, next) => {
+    const owner = await auth.owner(c.req.header("authorization"));
+    c.set("owner", owner);
+    await next();
+  });
   app.use("/api/o1/*", async (c, next) => {
     const owner = await auth.owner(c.req.header("authorization"));
     c.set("owner", owner);
