@@ -165,7 +165,7 @@ export async function createApp(
       architecture: o1.architecture,
       capabilities: o1.capabilitySummary(),
       connectors: statuses,
-      computer: { kind: o1.computerFabric?.kind ?? "unconfigured", persistentProvider: Boolean(o1.computerFabric?.persistentProvider), persistentGateway: Boolean(o1.computerFabric?.persistentGateway), browserGateway: Boolean(o1.computerFabric?.browserGateway) },
+      computer: { kind: o1.computerFabric?.kind ?? "unconfigured", persistentProvider: Boolean(o1.computerFabric?.persistentProvider), persistentGateway: Boolean(o1.computerFabric?.persistentGateway), browserGateway: Boolean(o1.computerFabric?.browserGateway), openAIComputerUse: Boolean(o1.computerUseClient) },
     });
   });
   app.get("/api/o1/capabilities", (c) => c.json({
