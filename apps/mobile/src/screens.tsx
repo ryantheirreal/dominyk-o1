@@ -1,5 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { HandoffCenter } from "./handoff-center";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -468,6 +469,7 @@ export function MailScreen() {
   );
   return (
     <View style={{ gap: 20 }}>
+      <HandoffCenter />
       <View style={[s.between, { gap: 12, flexWrap: "wrap" }]}>
         <View
           style={[
@@ -1055,7 +1057,7 @@ export function FilesScreen() {
   );
 }
 export function ActivityScreen() {
-  const { workspace: w, open } = useWorkspace();
+    const { workspace: w, open } = useWorkspace();
   const [filter, setFilter] = useState("all");
   const pending = w.actions.filter((a) => a.status === "awaiting_review");
   const actions = w.actions.filter((a) => filter === "all" || a.status === "awaiting_review");
