@@ -1,6 +1,6 @@
 import type { Store } from "../db.ts";
 import type { O1AuditLedger } from "./audit-ledger.ts";
-import type { O1PlanId } from "../../../packages/domain/src/plans.ts";
+import { O1_PLANS, type O1PlanId } from "../../../packages/domain/src/plans.ts";
 
 export type RoutineTrigger =
   | { type: "schedule"; cron: string }
@@ -25,6 +25,7 @@ export class O1RoutineService {
   constructor(private readonly db: Store, private readonly audit?: O1AuditLedger) {}
 
   async create(owner: string, input: { id: string; name: string; goal: string; trigger: RoutineTrigger; planId: O1PlanId }) {
+    if (!O1_PLANS.some((plan) => plan.id === input.planId)) throw new Error("Unknown O1 plan");
     const now = new Date().toISOString();
     const routine: O1Routine = { ...input, owner, enabled: true, createdAt: now, updatedAt: now };
     if (!routine.name.trim() || !routine.goal.trim()) throw new Error("Routine name and goal are required");
