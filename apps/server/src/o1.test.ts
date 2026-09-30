@@ -19,6 +19,7 @@ test("policy is fail-closed for destructive actions", () => {
 
 test("mission builder creates sequential checkpoints", () => {
   const result = buildMission({ id:"m1", goal:"ship", capabilities:["mission-governor","code-review"], qualityScore:0.5 });
+  expect(result.plan.phases.some((phase) => phase.mode === "verification" && phase.capability === "mission-governor")).toBe(true);
   expect(result.plan.phases.length).toBeGreaterThan(2);
   expect(result.events[0].type).toBe("mission.created");
 });
