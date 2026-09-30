@@ -30,6 +30,7 @@ import { O1EntitlementService } from "./o1/entitlements.ts";
 import { O1MissionStore } from "./o1/mission-store.ts";
 import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
 import { routeModel } from "./o1/model-router.ts";
+import { O1RunPreferencesService } from "./o1/run-preferences.ts";
 import { O1AuditLedger } from "./o1/audit-ledger.ts";
 
 export async function createApp(
@@ -61,6 +62,7 @@ export async function createApp(
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db, undefined, audit);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true, audit);
+  const runPreferences = new O1RunPreferencesService(db, entitlements, audit);
   async function requireComputerPermission(owner: string, risk: "write" | "destructive") {
     const settings = await db.get<{ mode?: string }>(owner, "o1-settings", "permissions");
     const decision = evaluatePermissionMode(normalizePermissionMode(settings?.mode), risk);
@@ -162,6 +164,11 @@ export async function createApp(
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
+  app.get("/api/o1/run-preferences", async (c) => c.json(await runPreferences.get(c.get("owner"))));
+  app.put("/api/o1/run-preferences", async (c) => {
+    const body = z.object({ effort: z.number().int().min(1).max(3), modelId: z.string().min(1).max(128) }).parse(await c.req.json());
+    return c.json(await runPreferences.set(c.get("owner"), body));
+  });
   app.post("/api/o1/model-route", async (c) => {
     const body = z.object({ effort: z.number().int().min(1).max(3), modelId: z.string().min(1).max(128).optional() }).parse(await c.req.json());
     const entitlement = await entitlements.get(c.get("owner"));
