@@ -3,7 +3,7 @@ import { O1_PLANS } from "../../../../packages/domain/src/plans.ts";
 import type { Store } from "../db.ts";
 import { O1EntitlementService } from "./entitlements.ts";
 
-class MemoryStore implements Store {
+class MemoryStore {
   private values = new Map<string, unknown>();
   async get<T>(owner: string, collection: string, id: string): Promise<T | null> {
     return (this.values.get(`${owner}:${collection}:${id}`) as T | undefined) ?? null;
@@ -17,7 +17,7 @@ class MemoryStore implements Store {
       .filter(([key]) => key.startsWith(`${owner}:${collection}:`))
       .map(([, value]) => value as T);
   }
-  async insertIfAbsent<T extends { id: string }>(owner: string, collection: string, value: T): Promise<T> {
+  async insertIfAbsent<T extends { id: string }>(owner: string, collection: string, value: T): Promise<T | null> {
     const key = `${owner}:${collection}:${value.id}`;
     if (!this.values.has(key)) this.values.set(key, value);
     return this.values.get(key) as T;
@@ -25,7 +25,7 @@ class MemoryStore implements Store {
 }
 
 test("defaults to Mini and exposes its entitlements", async () => {
-  const service = new O1EntitlementService(new MemoryStore());
+  const service = new O1EntitlementService(new MemoryStore() as unknown as Store);
   const state = await service.get("owner");
   expect(state.planId).toBe("mini");
   expect(state.plan.models).toEqual(O1_PLANS[0].models);
@@ -46,7 +46,7 @@ test("enforces effort access", async () => {
 
 test("supports a provisioned Max 20x plan", async () => {
   const store = new MemoryStore();
-  const service = new O1EntitlementService(store);
+  const service = new O1EntitlementService(store as unknown as Store);
   await service.set("owner", "max-20x");
   const state = await service.get("owner");
   expect(state.planId).toBe("max-20x");
