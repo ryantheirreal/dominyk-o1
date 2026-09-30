@@ -39,11 +39,14 @@ export class O1ComputerUseRunner {
       if (call.requiresApproval || permission.decision !== "allow") return { status: "waiting_approval", responseId: response.responseId, call };
       let latest: ComputerObservation | undefined;
       const gatewayActions = call.actions.map(toGatewayAction).filter((action): action is ComputerAction => Boolean(action));
-      const batch = await executeComputerBatch(gatewayActions, async (action) => {
-        latest = await this.gateway.act(input.computerId, action);
-        return latest;
-      });
-      if (!batch.completed) throw new Error(batch.results.find((item) => item.status === "failed")?.error ?? "Computer batch failed");
+      if (gatewayActions.length) {
+        const batch = await executeComputerBatch(gatewayActions, async (action) => {
+          latest = await this.gateway.act(input.computerId, action);
+          return latest;
+        });
+        if (!batch.completed)
+          throw new Error(batch.results.find((item) => item.status === "failed")?.error ?? "Computer batch failed");
+      }
       if (!latest || !latest.screenshotB64) latest = await this.gateway.observe(input.computerId);
       response = await this.client.continueWithScreenshot(response.responseId, call.callId, latest.screenshotB64);
     }
