@@ -171,7 +171,7 @@ export async function createApp(
   app.post("/api/o1/computers/:id/observe", async (c) => c.json(await computers.observe(c.get("owner"), c.req.param("id"))));
   app.post("/api/o1/computers/:id/action", async (c) => {
     await requireComputerPermission(c.get("owner"), "write");
-    const body = z.discriminatedUnion("type", [
+    const body = z.object({ operationId: z.string().trim().min(1).max(120), action: z.discriminatedUnion("type", [
       z.object({ type: z.literal("click"), x: z.number().finite(), y: z.number().finite() }),
       z.object({ type: z.literal("double_click"), x: z.number().finite(), y: z.number().finite() }),
       z.object({ type: z.literal("type"), text: z.string().max(20000) }),
@@ -179,8 +179,8 @@ export async function createApp(
       z.object({ type: z.literal("scroll"), deltaX: z.number().finite(), deltaY: z.number().finite() }),
       z.object({ type: z.literal("navigate"), url: z.url().max(4096) }),
       z.object({ type: z.literal("shell"), command: z.string().trim().min(1).max(16000), cwd: z.string().max(2048).optional() }),
-    ]).parse(await c.req.json());
-    return c.json(await computers.act(c.get("owner"), c.req.param("id"), body));
+    ]) }).parse(await c.req.json());
+    return c.json(await computers.act(c.get("owner"), c.req.param("id"), body.operationId, body.action));
   });
   app.delete("/api/o1/computers/:id", async (c) => { await requireComputerPermission(c.get("owner"), "destructive"); return c.json(await computers.destroy(c.get("owner"), c.req.param("id"))); });
   app.get("/api/o1/missions/:id", async (c) => {
