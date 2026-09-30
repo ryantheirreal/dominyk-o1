@@ -27,7 +27,7 @@ export class O1AuditLedger {
       at: new Date().toISOString(),
       ...(input.data === undefined ? {} : { data: redactSecrets(input.data) }),
     };
-    return this.db.put(input.owner, "o1-audit", event);
+    return this.db.insertIfAbsent(input.owner, "o1-audit", event);
   }
 
   async list(owner: string, limit = 200) {
