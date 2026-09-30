@@ -235,16 +235,22 @@ export async function createApp(
   app.post("/api/o1/computers/:id/observe", async (c) => c.json(await computers.observe(c.get("owner"), c.req.param("id"))));
   app.post("/api/o1/computers/:id/action", async (c) => {
     await requireComputerPermission(c.get("owner"), "write");
-    const body = z.object({ operationId: z.string().trim().min(1).max(120), action: z.discriminatedUnion("type", [
-      z.object({ type: z.literal("click"), x: z.number().finite(), y: z.number().finite() }),
-      z.object({ type: z.literal("double_click"), x: z.number().finite(), y: z.number().finite() }),
-      z.object({ type: z.literal("type"), text: z.string().max(20000) }),
-      z.object({ type: z.literal("key"), key: z.string().min(1).max(64) }),
-      z.object({ type: z.literal("scroll"), deltaX: z.number().finite(), deltaY: z.number().finite() }),
-      z.object({ type: z.literal("navigate"), url: z.url().max(4096) }),
-      z.object({ type: z.literal("shell"), command: z.string().trim().min(1).max(16000), cwd: z.string().max(2048).optional() }),
-    ]) }).parse(await c.req.json());
-    return c.json(await computers.act(c.get("owner"), c.req.param("id"), body.operationId, body.action));
+    const body = z.object({
+      operationId: z.string().trim().min(1).max(120),
+      action: z.discriminatedUnion("type", [
+        z.object({ type: z.literal("click"), x: z.number().finite(), y: z.number().finite(), button: z.enum(["left","right","wheel","back","forward"]).optional() }),
+        z.object({ type: z.literal("double_click"), x: z.number().finite(), y: z.number().finite() }),
+        z.object({ type: z.literal("type"), text: z.string().max(20000) }),
+        z.object({ type: z.literal("key"), key: z.string().min(1).max(64) }),
+        z.object({ type: z.literal("keypress"), keys: z.array(z.string().min(1).max(64)).min(1).max(8) }),
+        z.object({ type: z.literal("scroll"), x: z.number().finite().optional(), y: z.number().finite().optional(), deltaX: z.number().finite().min(-5000).max(5000), deltaY: z.number().finite().min(-5000).max(5000) }),
+        z.object({ type: z.literal("move"), x: z.number().finite(), y: z.number().finite() }),
+        z.object({ type: z.literal("drag"), path: z.array(z.object({ x: z.number().finite(), y: z.number().finite() })).min(2).max(100) }),
+        z.object({ type: z.literal("wait") }),
+        z.object({ type: z.literal("navigate"), url: z.url().max(4096) }),
+        z.object({ type: z.literal("shell"), command: z.string().trim().min(1).max(16000), cwd: z.string().max(2048).optional() }),
+      ]),
+    }).parse(await c.req.json());    return c.json(await computers.act(c.get("owner"), c.req.param("id"), body.operationId, body.action));
   });
   app.delete("/api/o1/computers/:id", async (c) => { await requireComputerPermission(c.get("owner"), "destructive"); return c.json(await computers.destroy(c.get("owner"), c.req.param("id"))); });
   app.get("/api/o1/missions/:id", async (c) => {
