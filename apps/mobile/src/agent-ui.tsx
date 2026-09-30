@@ -192,6 +192,7 @@ export function AgentActivityScreen() {
   return (
     <View style={{ gap: 20 }}>
       <AgentStatus />
+      <AgentRoster />
       <View style={[s.row, { gap: 8 }]}>
         {["All", "In progress", "Finished"].map((item) => (
           <Button key={item} small primary={filter === item} onPress={() => setFilter(item)}>
@@ -1661,6 +1662,50 @@ export function NotificationsSheet() {
         )}
       </View>
     </Sheet>
+  );
+}
+function AgentRoster() {
+  const { api } = useWorkspace();
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; role: string; objective: string; status: string }>>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    try {
+      setAgents(await api.request("/api/o1/agents"));
+      setError("");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  }
+  useEffect(() => { void load(); }, [api]);
+  async function ensureDefaults() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const defaults = [
+        { id: "researcher", name: "Researcher", role: "research", objective: "Gather and verify evidence", toolScopes: ["browser.read", "files.read"] },
+        { id: "builder", name: "Builder", role: "coding", objective: "Implement and test software", toolScopes: ["computer", "shell", "files.write"] },
+        { id: "verifier", name: "Verifier", role: "verification", objective: "Challenge results and find regressions", toolScopes: ["browser.read", "files.read"] },
+      ];
+      for (const agent of defaults) {
+        if (!agents.some((item) => item.id === agent.id))
+          await api.request("/api/o1/agents", agent, "POST");
+      }
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setBusy(false); }
+  }
+  return (
+    <Card style={{ gap: 12 }}>
+      <View style={[s.row, { gap: 8 }]}><Users size={18} color={colors.blueDark} /><SectionHeading title="Agent roster" /></View>
+      {agents.length ? agents.map((agent) => (
+        <View key={agent.id} style={[s.row, { gap: 11, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line }]} >
+          <View style={[s.iconBox, { backgroundColor: agent.status === "working" ? colors.sky : colors.canvas }]}><Users size={15} color={colors.text} /></View>
+          <View style={{ flex: 1, gap: 2 }}><Text style={s.text}>{agent.name}</Text><Text style={s.small}>{agent.role} · {statusLabel(agent.status)}</Text></View>
+        </View>
+      )) : <Text style={s.muted}>No persistent agents yet.</Text>}
+      <Button small busy={busy} onPress={() => void ensureDefaults()}>{agents.length ? "Refresh roster" : "Create core agents"}</Button>
+      <ErrorNotice error={error} />
+    </Card>
   );
 }
 export function AppsScreen() {
