@@ -32,6 +32,7 @@ import { FileThreadCard, TaskThreadCard } from "./thread-artifacts";
 import { type Selection, useMuseThread } from "./threads";
 import { Button, Card, CheckRow, colors, ErrorNotice, s } from "./ui";
 import { useWorkspace } from "./workspace";
+import { PermissionModePicker } from "./permission-mode-picker";
 
 const displayParameters = z.record(z.string(), z.unknown());
 export function WorkspaceTools() {
@@ -341,6 +342,9 @@ export function ChatScreen({
   const replying = busy || agent.isRunning;
   return (
     <View style={{ flex: 1 }}>
+      <View style={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 2 }}>
+        <PermissionModePicker />
+      </View>
       <ScrollView
         ref={list}
         showsVerticalScrollIndicator={false}
