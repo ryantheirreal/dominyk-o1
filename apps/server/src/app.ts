@@ -152,9 +152,9 @@ export async function createApp(
       throw new AppError("Too many sign-in attempts. Try again in a minute.", 429);
     const body = z.object({ accessKey: z.string().optional() }).parse(await c.req.json());
     const session = await auth.session(body.accessKey);
-    await workspace.ensureSample("local-user", actions);
-    await agent.ensure("local-user");
-    if (config.mode === "sample") await agent.refreshIdeas("local-user");
+    await workspace.ensureSample(session.owner, actions);
+    await agent.ensure(session.owner);
+    if (config.mode === "sample") await agent.refreshIdeas(session.owner);
     return c.json(session);
   });
   app.get("/api/o1", async (c) => {
