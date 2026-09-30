@@ -1,5 +1,5 @@
 import { evaluatePolicy, type O1Decision, type O1Risk } from "./policy.ts";
-import { expandCapability } from "./capabilities.ts";
+import { expandCapability, specialistAgents, type SpecialistAgent } from "./capabilities.ts";
 
 export interface MissionIntent {
   id: string;
@@ -50,4 +50,29 @@ export function modelRoute(input: { complexity:number; latencySensitive?:boolean
   if (input.complexity >= 0.8) return "max";
   if (input.budget !== undefined && input.budget < 0.2) return "aether";
   return "standard";
+}
+
+
+export interface MissionStage {
+  id: string;
+  capability: string;
+  specialists: SpecialistAgent[];
+  parallel: boolean;
+}
+
+export function buildExecutionStages(capabilities: string[], qualityScore = 1): MissionStage[] {
+  return capabilities.map((id) => ({
+    id: "stage:" + id,
+    capability: id,
+    specialists: qualityScore < 0.85 ? specialistAgents(id) : [],
+    parallel: qualityScore < 0.85 && specialistAgents(id).length > 1,
+  }));
+}
+
+export function requiresVerification(capabilityId: string) {
+  return [
+    "mission-governor","multi-agent-swarm","computer-control","shell-sandbox",
+    "patch-engine","code-review","security-review","model-router","approval-kernel",
+    "policy-gateway","mcp-gateway","messaging-fabric","billing-entitlements",
+  ].includes(capabilityId);
 }
