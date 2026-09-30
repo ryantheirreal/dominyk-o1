@@ -28,6 +28,7 @@ import { modeLabel, type PermissionMode, normalizePermissionMode } from "./o1/pe
 import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
 import { O1MissionStore } from "./o1/mission-store.ts";
+import { O1ComputerSessionService } from "./o1/computer-sessions.ts";
 
 export async function createApp(
   db: Store,
@@ -56,6 +57,7 @@ export async function createApp(
   const connectorActions = new ConnectorActionService(db, connectorBus);
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db);
+  const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -149,6 +151,29 @@ export async function createApp(
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
   app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
+  app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
+  app.post("/api/o1/computers", async (c) => {
+    const body = z.object({ name: z.string().trim().min(1).max(63), image: z.string().trim().max(128).optional(), region: z.string().trim().max(64).optional(), size: z.string().trim().max(64).optional() }).parse(await c.req.json());
+    return c.json(await computers.create(c.get("owner"), body), 201);
+  });
+  app.get("/api/o1/computers/:id", async (c) => c.json(await computers.get(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/sync", async (c) => c.json(await computers.sync(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/start", async (c) => c.json(await computers.start(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/stop", async (c) => c.json(await computers.stop(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/observe", async (c) => c.json(await computers.observe(c.get("owner"), c.req.param("id"))));
+  app.post("/api/o1/computers/:id/action", async (c) => {
+    const body = z.discriminatedUnion("type", [
+      z.object({ type: z.literal("click"), x: z.number().finite(), y: z.number().finite() }),
+      z.object({ type: z.literal("double_click"), x: z.number().finite(), y: z.number().finite() }),
+      z.object({ type: z.literal("type"), text: z.string().max(20000) }),
+      z.object({ type: z.literal("key"), key: z.string().min(1).max(64) }),
+      z.object({ type: z.literal("scroll"), deltaX: z.number().finite(), deltaY: z.number().finite() }),
+      z.object({ type: z.literal("navigate"), url: z.url().max(4096) }),
+      z.object({ type: z.literal("shell"), command: z.string().trim().min(1).max(16000), cwd: z.string().max(2048).optional() }),
+    ]).parse(await c.req.json());
+    return c.json(await computers.act(c.get("owner"), c.req.param("id"), body));
+  });
+  app.delete("/api/o1/computers/:id", async (c) => c.json(await computers.destroy(c.get("owner"), c.req.param("id"))));
   app.get("/api/o1/missions/:id", async (c) => {
     const mission = await missions.get(c.get("owner"), c.req.param("id"));
     if (!mission) throw new AppError("Mission not found", 404);
