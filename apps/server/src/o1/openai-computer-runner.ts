@@ -38,10 +38,13 @@ export class O1ComputerUseRunner {
     runId?: string;
     approvalGranted?: boolean;
     checkpoint?: (state: { runId: string; responseId: string; turn: number; status: O1ComputerRunResult["status"]; call?: O1ComputerCall }) => Promise<void>;
+    resume?: { responseId: string; call: O1ComputerCall };
   }): Promise<O1ComputerRunResult> {
     const maxTurns = Math.max(1, Math.min(input.maxTurns ?? 20, 100));
     const runId = input.runId ?? randomUUID();
-    let response = await this.client.start(input.prompt);
+    let response = input.resume
+      ? { responseId: input.resume.responseId, computerCall: input.resume.call, output: [] as unknown[] }
+      : await this.client.start(input.prompt);
     await input.checkpoint?.({ runId, responseId: response.responseId, turn: 0, status: "running", call: response.computerCall });
     for (let turn = 0; turn < maxTurns; turn += 1) {
       if (!response.computerCall) {
@@ -70,5 +73,6 @@ export class O1ComputerUseRunner {
     }
     await input.checkpoint?.({ runId, responseId: response.responseId, turn: maxTurns, status: "exhausted" });
     return { status: "exhausted", responseId: response.responseId, output: response.output };
+  }
   }
 }
