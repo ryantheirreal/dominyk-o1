@@ -327,7 +327,7 @@ export async function createBrowserManager(options: {
         const { page } = active(id);
         const { type, x, y, key, text, deltaY } = input;
         if (
-          type === "click" &&
+          (type === "click" || type === "double_click") &&
           typeof x === "number" &&
           typeof y === "number" &&
           Number.isFinite(x) &&
@@ -337,7 +337,7 @@ export async function createBrowserManager(options: {
           y >= 0 &&
           y < 800
         )
-          await page.mouse.click(x, y);
+          type === "double_click" ? await page.mouse.dblclick(x, y) : await page.mouse.click(x, y);
         else if (type === "text" && typeof text === "string" && text.length <= 10_000)
           await page.keyboard.insertText(text);
         else if (
