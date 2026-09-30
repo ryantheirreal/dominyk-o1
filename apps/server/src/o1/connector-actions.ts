@@ -55,7 +55,20 @@ export class ConnectorActionService {
         await this.audit?.record({ owner, category: "connector", action: "succeeded", targetId: id, data: { operation, result } });
         return this.db.put(owner,"o1-connector-actions",succeeded);
       } catch (error) {
-        const uncertain=isUncertainOutcome(error);
+        const uncertain = isUncertainOutcome(error);
+        const failed = {
+          ...action,
+          status: uncertain ? "outcome_unknown" as const : "failed" as const,
+          error: error instanceof Error ? error.message : "Connector execution failed",
+        };
+        await this.audit?.record({
+          owner,
+          category: "connector",
+          action: failed.status,
+          targetId: id,
+          data: { operation, error: failed.error },
+        });
+        return this.db.put(owner, "o1-connector-actions", failed);
       }
     }
     return action;
