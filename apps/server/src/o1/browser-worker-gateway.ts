@@ -35,7 +35,7 @@ export class BrowserWorkerGateway implements ComputerGateway {
     else if (action.type === 'click')
       await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'click', x: action.x, y: action.y }) });
     else if (action.type === 'double_click')
-      throw new Error('Browser worker does not expose double-click in its current input contract');
+      await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'double_click', x: action.x, y: action.y }) });
     else if (action.type === 'type')
       await checked(this.fetchImpl, this.token, this.url(`/sessions/${id}/input`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'text', text: action.text }) });
     else if (action.type === 'key')
