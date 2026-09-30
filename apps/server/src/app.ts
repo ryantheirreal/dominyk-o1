@@ -188,10 +188,10 @@ export async function createApp(
   });
   app.put("/api/o1/permissions", async (c) => {
     const body = z.object({
-      mode: z.enum(["ask_codex","ask_approval","full_access"]),
+      mode: z.enum(["ask_codex","ask_approval","approve_for_me"]),
       confirm: z.boolean().default(false),
     }).parse(await c.req.json());
-    if (body.mode === "full_access" && !body.confirm)
+    if (body.mode === "approve_for_me" && !body.confirm)
       throw new AppError("Explicit confirmation is required", 409);
     const value = {
       id:"permissions",
