@@ -41,6 +41,8 @@ export interface Config {
   agentUrl?: string;
   agentToken?: string;
   intelligenceApiKey?: string;
+  openAiApiKey?: string;
+  computerUseModel?: string;
   googleClientId?: string;
   googleClientSecret?: string;
   googleRedirectUri: string;
@@ -126,6 +128,8 @@ export function readConfig(): Config {
     agentUrl: process.env.AGENT_URL,
     agentToken: process.env.AGENT_TOKEN,
     intelligenceApiKey: required("CPK_INTELLIGENCE_API_KEY", intelligenceKeyRequiredMessage),
+    openAiApiKey: process.env.OPENAI_API_KEY,
+    computerUseModel: process.env.O1_COMPUTER_USE_MODEL ?? "gpt-5.6-sol",
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: `${publicUrl}/api/google/callback`,
