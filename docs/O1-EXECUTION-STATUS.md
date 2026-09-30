@@ -30,3 +30,16 @@ Updated: 2026-09-30
 ## Verification rule
 
 Do not describe the pending items as implemented. Product claims must follow verified code, tests, and deployment receipts.
+
+## Latest execution increments
+
+- Mission plans now materialize explicit verification phases for gated capabilities.
+- Model and effort preferences are persistent and entitlement-bound.
+- A model readiness registry distinguishes catalogued models from configured providers.
+- Browser interactions have idempotent action receipts and are routed through the O1 permission kernel.
+- Browser Worker Playwright sessions can act as a browser computer gateway with screenshot, read, navigate, click, double-click, text, key and scroll.
+- Persistent computer lifecycle is separated from browser control: Hetzner handles VM lifecycle while a dedicated persistent gateway handles VM actions.
+- Remote computer actions have idempotency keys, hashes, receipts and uncertain-outcome handling.
+- Authentication can optionally map multiple server-side access keys to distinct owners through O1_ACCESS_KEYS_JSON.
+- The O1 audit ledger records identity, permission, mission, connector, model and computer activity with secret redaction.
+- CI static audit now checks critical O1 naming and state contracts.
