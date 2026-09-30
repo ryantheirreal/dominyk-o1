@@ -1,6 +1,7 @@
 import type { Config } from "../config.ts";
 import { HttpComputerGateway, type ComputerGateway } from "./computer-gateway.ts";
 import { HetznerComputerProvider } from "./hetzner-computer-provider.ts";
+import { BrowserWorkerGateway } from "./browser-worker-gateway.ts";
 import type { ComputerProvider } from "./computer-provider.ts";
 
 export interface O1ComputerFabric {
@@ -12,7 +13,9 @@ export interface O1ComputerFabric {
 export function createComputerFabric(config: Config): O1ComputerFabric {
   const gateway = config.computerGatewayUrl && config.computerGatewayToken
     ? new HttpComputerGateway(config.computerGatewayUrl, config.computerGatewayToken)
-    : undefined;
+    : config.workerUrl && config.workerToken
+      ? new BrowserWorkerGateway(config.workerUrl, config.workerToken)
+      : undefined;
   if (config.hetznerApiToken) {
     return {
       kind: "hetzner",
