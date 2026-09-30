@@ -30,3 +30,15 @@ export async function createO1Platform(config?: Config) {
     redactSecrets,
   };
 }
+
+export { O1AgentRegistry } from "./agent-registry.ts";
+export { O1HandoffService } from "./agent-handoff.ts";
+export { classifyFailure, decideRecovery } from "./recovery-engine.ts";
+export { O1RoutineService } from "./routines.ts";
+export { validateTaskGraph, readyTaskBatches } from "./task-graph.ts";
+export { executeComputerBatch } from "./computer-batch.ts";
+export { parseOpenAIComputerCall } from "./openai-computer-call.ts";
+export { O1AuditLedger } from "./audit-ledger.ts";
+export { O1EntitlementService } from "./entitlements.ts";
+export { O1MissionStore } from "./mission-store.ts";
+export { O1RunPreferencesService } from "./run-preferences.ts";
