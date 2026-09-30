@@ -12,7 +12,7 @@ export interface MissionIntent {
 export interface MissionPlan {
   id: string;
   goal: string;
-  phases: Array<{ id:string; capability:string; dependsOn:string[]; mode:"primary"|"fallback"|"verification" }>;
+  phases: Array<{ id:string; capability:string; dependsOn:string[]; mode:"primary"|"fallback"|"verification"; parallelGroup:string }>;
   budget: MissionIntent["budget"];
 }
 
@@ -25,20 +25,32 @@ export interface O1RunEvent {
 export function buildMission(intent: MissionIntent): { plan: MissionPlan; events: O1RunEvent[] } {
   const events: O1RunEvent[] = [];
   const phases: MissionPlan["phases"] = [];
-  let previous: string[] = [];
   for (const capabilityId of intent.capabilities) {
     const expanded = expandCapability(capabilityId, intent.qualityScore ?? 1);
+    let previousWithinCapability: string[] = [];
     for (const id of expanded) {
       const phaseId = intent.id + ":" + id;
-      phases.push({ id:phaseId, capability:id, dependsOn:[...previous], mode:id === capabilityId ? "primary" : "fallback" });
-      events.push({ type:"phase.expanded", at:new Date().toISOString(), data:{ missionId:intent.id, capability:id, parent:capabilityId } });
+      phases.push({
+        id: phaseId,
+        capability: id,
+        dependsOn: [...previousWithinCapability],
+        mode: id === capabilityId ? "primary" : "fallback",
+        parallelGroup: intent.id + ":parallel",
+      });
+      events.push({ type:"phase.expanded", at:new Date().toISOString(), data:{ missionId:intent.id, capability:id, parent:capabilityId, parallelGroup:intent.id + ":parallel" } });
       if (requiresVerification(id)) {
         const verificationId = phaseId + ":verify";
-        phases.push({ id:verificationId, capability:id, dependsOn:[phaseId], mode:"verification" });
+        phases.push({
+          id: verificationId,
+          capability: id,
+          dependsOn: [phaseId],
+          mode: "verification",
+          parallelGroup: intent.id + ":verification",
+        });
         events.push({ type:"phase.expanded", at:new Date().toISOString(), data:{ missionId:intent.id, capability:id, verificationOf:phaseId } });
-        previous = [verificationId];
+        previousWithinCapability = [verificationId];
       } else {
-        previous = [phaseId];
+        previousWithinCapability = [phaseId];
       }
     }
   }
