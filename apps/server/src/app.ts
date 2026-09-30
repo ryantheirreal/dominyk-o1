@@ -191,7 +191,7 @@ export async function createApp(
       text: body.text,
       ...(body.attachmentB64 ? { attachmentB64: body.attachmentB64, attachmentName: body.attachmentName ?? "image" } : {}),
     });
-    return c.json({ approvalRequired:true, action }, 201);
+    return c.json({ approvalRequired: action.status === "awaiting_review", action }, 201);
   });
   app.get("/api/o1/permissions", async (c) => {
     const current = await db.get<any>(c.get("owner"), "o1-settings", "permissions");
