@@ -160,7 +160,7 @@ export async function createApp(
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
-  app.get("/api/o1/audit", async (c) => c.json(await audit.list(c.get("owner"), Number(c.req.query("limit") ?? "200"))));
+  app.get("/api/o1/audit", async (c) => { const limit = z.coerce.number().int().min(1).max(500).default(200).parse(c.req.query("limit")); return c.json(await audit.list(c.get("owner"), limit)); });
   app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
   app.get("/api/o1/computers", async (c) => c.json(await computers.list(c.get("owner"))));
   app.post("/api/o1/computers", async (c) => {
