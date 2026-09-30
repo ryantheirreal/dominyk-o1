@@ -27,3 +27,16 @@ test("model router respects speed and complexity", () => {
   expect(modelRoute({ complexity:0.1, latencySensitive:true })).toBe("fast");
   expect(modelRoute({ complexity:0.9 })).toBe("max");
 });
+
+test("low-quality execution creates parallel specialist agents", async () => {
+  const { buildExecutionStages } = await import("./o1/runtime.ts");
+  const stages = buildExecutionStages(["multi-agent-swarm"], 0.5);
+  expect(stages[0]?.parallel).toBe(true);
+  expect(stages[0]?.specialists.length).toBeGreaterThan(1);
+});
+
+test("verification gates cover high-risk execution primitives", async () => {
+  const { requiresVerification } = await import("./o1/runtime.ts");
+  expect(requiresVerification("patch-engine")).toBe(true);
+  expect(requiresVerification("files-rag")).toBe(false);
+});
