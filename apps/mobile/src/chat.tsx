@@ -7,7 +7,7 @@ import {
   useRenderTool,
   useRenderToolCall,
 } from "@copilotkit/react-native/headless";
-import { ArrowDown, ArrowUp, FileText, RotateCcw, Square, X } from "lucide-react-native";
+import { ArrowDown, ArrowUp, FileText, LockKeyhole, RotateCcw, Square, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   KeyboardAvoidingView,
@@ -203,6 +203,8 @@ export function ChatScreen({
   const [historyError, setHistoryError] = useState("");
   const [historyAttempt, setHistoryAttempt] = useState(0);
   const [entitlements, setEntitlements] = useState<{ plan: O1Plan; unlockedEfforts: number }>();
+  const [runPreferences, setRunPreferences] = useState<{ effort: number; modelId: string }>();
+  const [runPreferenceBusy, setRunPreferenceBusy] = useState(false);
   useEffect(() => {
     let active = true;
     void api
@@ -217,6 +219,26 @@ export function ChatScreen({
       active = false;
     };
   }, [api]);
+  useEffect(() => {
+    let active = true;
+    void api.request<{ effort: number; modelId: string }>("/api/o1/run-preferences").then((value) => {
+      if (active) setRunPreferences(value);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [api]);
+  async function chooseRunPreference(input: { effort?: number; modelId?: string }) {
+    if (!entitlements || runPreferenceBusy) return;
+    const next = { effort: input.effort ?? runPreferences?.effort ?? 1, modelId: input.modelId ?? runPreferences?.modelId ?? entitlements.plan.models[0].id };
+    setRunPreferenceBusy(true);
+    try {
+      const value = await api.request<{ effort: number; modelId: string }>("/api/o1/run-preferences", next, "PUT");
+      setRunPreferences(value);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunPreferenceBusy(false);
+    }
+  }
   useEffect(() => {
     if (!isReady) return;
     let active = true;
@@ -360,20 +382,43 @@ export function ChatScreen({
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 2, gap: 7 }}>
         <PermissionModePicker />
-        <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-          {entitlements?.plan.models.map((model) => (
-            <View key={model.id} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: "#F3F5F6" }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>{model.name}</Text>
-            </View>
-          ))}
-          {entitlements && (
-            <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.sky }}>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: colors.blueDark }}>
-                {entitlements.plan.name} · {entitlements.unlockedEfforts}/{entitlements.plan.totalEfforts} efforts
-              </Text>
-            </View>
-          )}
-          {!entitlements && (
+                <View style={{ gap: 8 }}>
+          <Text style={{ fontSize: 11, fontWeight: "800", color: colors.muted }}>Models</Text>
+          <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+            {entitlements?.plan.models.map((model) => {
+              const selected = runPreferences?.modelId === model.id;
+              return (
+                <Pressable
+                  key={model.id}
+                  disabled={runPreferenceBusy}
+                  onPress={() => void chooseRunPreference({ modelId: model.id })}
+                  style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14, backgroundColor: selected ? colors.sky : "#F3F5F6", borderWidth: 1, borderColor: selected ? colors.blue : colors.line, opacity: runPreferenceBusy ? 0.6 : 1 }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: selected ? colors.blueDark : colors.muted }}>{model.name}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {[1, 2, 3].map((effort) => {
+              const unlocked = Boolean(entitlements && effort <= entitlements.plan.unlockedEfforts);
+              const selected = runPreferences?.effort === effort;
+              return (
+                <Pressable
+                  key={effort}
+                  disabled={!unlocked || runPreferenceBusy}
+                  onPress={() => void chooseRunPreference({ effort })}
+                  style={{ flex: 1, minWidth: 72, paddingVertical: 7, borderRadius: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 4, backgroundColor: selected ? colors.sky : unlocked ? "#F3F5F6" : "#F7F7F7", borderWidth: 1, borderColor: selected ? colors.blue : colors.line, opacity: unlocked ? 1 : 0.65 }}
+                >
+                  {!unlocked && <LockKeyhole size={11} color={colors.muted} />}
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: unlocked ? colors.text : colors.muted }}>Effort {effort}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {entitlements && <Text style={s.small}>{entitlements.plan.name} · {entitlements.plan.unlockedEfforts}/{entitlements.plan.totalEfforts} efforts unlocked</Text>}
+        </View>
+        {!entitlements && (
             <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>
               Model access unavailable
             </Text>
