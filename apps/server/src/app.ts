@@ -27,6 +27,7 @@ import { ConnectorActionService } from "./o1/connector-actions.ts";
 import { modeLabel, type PermissionMode, normalizePermissionMode } from "./o1/permissions.ts";
 import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 import { O1EntitlementService } from "./o1/entitlements.ts";
+import { O1MissionStore } from "./o1/mission-store.ts";
 
 export async function createApp(
   db: Store,
@@ -54,6 +55,7 @@ export async function createApp(
   const connectorBus = new ConnectorBus();
   const connectorActions = new ConnectorActionService(db, connectorBus);
   const entitlements = new O1EntitlementService(db);
+  const missions = new O1MissionStore(db);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -146,6 +148,24 @@ export async function createApp(
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
+  app.get("/api/o1/missions", async (c) => c.json(await missions.list(c.get("owner"))));
+  app.get("/api/o1/missions/:id", async (c) => {
+    const mission = await missions.get(c.get("owner"), c.req.param("id"));
+    if (!mission) throw new AppError("Mission not found", 404);
+    return c.json(mission);
+  });
+  app.post("/api/o1/missions", async (c) => {
+    const body = z.object({ id: z.string().min(1).max(128).optional(), goal: z.string().trim().min(1).max(10000), budget: z.object({ maxSteps: z.number().int().positive().optional(), maxCost: z.number().nonnegative().optional(), maxRuntimeMs: z.number().int().positive().optional() }).optional() }).parse(await c.req.json());
+    return c.json(await missions.create(c.get("owner"), body), 201);
+  });
+  app.post("/api/o1/missions/:id/transition", async (c) => {
+    const body = z.object({ status: z.enum(["planned","queued","running","waiting_input","waiting_approval","verifying","succeeded","failed","cancelled","recovering","unknown_outcome"]) }).parse(await c.req.json());
+    return c.json(await missions.transition(c.get("owner"), c.req.param("id"), body.status));
+  });
+  app.post("/api/o1/missions/:id/checkpoint", async (c) => {
+    const body = z.object({ phaseIndex: z.number().int().min(0).optional(), completedSteps: z.number().int().min(0).optional(), estimatedCost: z.number().nonnegative().optional() }).parse(await c.req.json());
+    return c.json(await missions.checkpoint(c.get("owner"), c.req.param("id"), body));
+  });
   app.get("/api/o1/connectors/:id/health", async (c) => {
     const id = c.req.param("id");
     if (!o1.connector(id)) throw new AppError("Connector not found", 404);
