@@ -40,6 +40,7 @@ export { classifyFailure, decideRecovery } from "./recovery-engine.ts";
 export { O1RoutineService } from "./routines.ts";
 export { validateTaskGraph, readyTaskBatches } from "./task-graph.ts";
 export { executeComputerBatch } from "./computer-batch.ts";
+export { executeParallelTasks } from "./parallel-executor.ts";
 export { parseOpenAIComputerCall } from "./openai-computer-call.ts";
 export { O1AuditLedger } from "./audit-ledger.ts";
 export { O1EntitlementService } from "./entitlements.ts";
