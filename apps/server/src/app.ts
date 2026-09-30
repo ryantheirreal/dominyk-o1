@@ -20,6 +20,8 @@ import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
 import { WorkspaceService } from "./workspace.ts";
+import { createO1Platform } from "./o1/index.ts";
+import { ImessageConnector } from "./o1/connectors/imessage.ts";
 
 export async function createApp(
   db: Store,
@@ -43,6 +45,7 @@ export async function createApp(
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
   const runtime = makeRuntime(config, agent, auth, intelligence);
+  const o1 = await createO1Platform();
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -77,7 +80,7 @@ export async function createApp(
       return c.json({ error: error.message }, 422);
     if (error instanceof SyntaxError) return c.json({ error: "Invalid request data" }, 400);
     // Provider and document errors are useful, but raw stack traces and token-bearing responses are not.
-    console.error(`[OpenMuse] ${error.name}`);
+    console.error(`[O1] ${error.name}`);
     return c.json(
       {
         error:
@@ -111,6 +114,58 @@ export async function createApp(
     await agent.ensure("local-user");
     if (config.mode === "sample") await agent.refreshIdeas("local-user");
     return c.json(session);
+  });
+  app.get("/api/o1", async (c) => {
+    const statuses = await o1.connectorStatuses();
+    return c.json({
+      name: o1.name,
+      version: o1.version,
+      architecture: o1.architecture,
+      capabilities: o1.capabilitySummary(),
+      connectors: statuses,
+    });
+  });
+  app.get("/api/o1/capabilities", (c) => c.json({
+    ...o1.capabilitySummary(),
+    definitions: o1.capabilities,
+  }));
+  app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
+  app.get("/api/o1/connectors/:id/health", async (c) => {
+    const id = c.req.param("id");
+    if (!o1.connector(id)) throw new AppError("Connector not found", 404);
+    const statuses = await o1.connectorStatuses();
+    return c.json(statuses.find((item) => item.id === id));
+  });
+  app.post("/api/o1/policy/authorize", async (c) => {
+    const body = z.object({
+      actorId: z.string().min(1).max(256),
+      tool: z.string().min(1).max(256),
+      risk: z.enum(["read","write","sensitive","external","destructive"]),
+      target: z.string().max(2048).optional(),
+      explicitApproval: z.boolean().optional(),
+      dryRun: z.boolean().optional(),
+    }).parse(await c.req.json());
+    return c.json(o1.authorizeTool(body));
+  });
+  app.post("/api/o1/missions/plan", async (c) => {
+    const body = z.object({
+      id: z.string().min(1).max(128),
+      goal: z.string().min(1).max(10000),
+      capabilities: z.array(z.string().min(1)).min(1).max(35),
+      qualityScore: z.number().min(0).max(1).optional(),
+      budget: z.object({
+        maxSteps: z.number().int().positive().optional(),
+        maxCost: z.number().nonnegative().optional(),
+        maxRuntimeMs: z.number().int().positive().optional(),
+      }).optional(),
+    }).parse(await c.req.json());
+    return c.json(o1.buildMission(body), 201);
+  });
+  app.get("/api/o1/imessage/messages", async (c) => {
+    const after = c.req.query("after");
+    if (after !== undefined && (!/^\\d+$/.test(after) || Number(after) > Number.MAX_SAFE_INTEGER))
+      throw new AppError("after must be a valid unix timestamp in milliseconds", 422);
+    return c.json(await new ImessageConnector().messages(after === undefined ? undefined : Number(after)));
   });
   app.get("/api/google/callback", async (c) => {
     if (c.req.query("error"))
@@ -345,7 +400,7 @@ export async function createApp(
     return new Response(body, { status: response.status, headers: response.headers });
   });
   app.get("/", (c) =>
-    c.json({ name: "OpenMuse", app: "http://localhost:8081", health: "/api/health" }),
+    c.json({ name: "O1", app: "http://localhost:8081", health: "/api/health", platform: "/api/o1" }),
   );
   return { app, auth, files, actions, workspace, agent, computer };
 }
