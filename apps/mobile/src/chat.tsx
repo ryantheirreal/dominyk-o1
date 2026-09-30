@@ -33,7 +33,7 @@ import { type Selection, useMuseThread } from "./threads";
 import { Button, Card, CheckRow, colors, ErrorNotice, s } from "./ui";
 import { useWorkspace } from "./workspace";
 import { PermissionModePicker } from "./permission-mode-picker";
-import { DOMINYK_MODELS } from "./model-catalog";
+import type { O1Plan } from "../../../packages/domain/src/plans";
 
 const displayParameters = z.record(z.string(), z.unknown());
 export function WorkspaceTools() {
@@ -202,6 +202,21 @@ export function ChatScreen({
   const [saveError, setSaveError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [historyAttempt, setHistoryAttempt] = useState(0);
+  const [entitlements, setEntitlements] = useState<{ plan: O1Plan; unlockedEfforts: number }>();
+  useEffect(() => {
+    let active = true;
+    void api
+      .request<{ plan: O1Plan }>("/api/o1/entitlements")
+      .then((value) => {
+        if (active) setEntitlements({ plan: value.plan, unlockedEfforts: value.plan.unlockedEfforts });
+      })
+      .catch(() => {
+        if (active) setEntitlements(undefined);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api]);
   useEffect(() => {
     if (!isReady) return;
     let active = true;
@@ -346,11 +361,23 @@ export function ChatScreen({
       <View style={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 2, gap: 7 }}>
         <PermissionModePicker />
         <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-          {DOMINYK_MODELS.map((model) => (
+          {entitlements?.plan.models.map((model) => (
             <View key={model.id} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: "#F3F5F6" }}>
               <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>{model.name}</Text>
             </View>
           ))}
+          {entitlements && (
+            <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.sky }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: colors.blueDark }}>
+                {entitlements.plan.name} · {entitlements.unlockedEfforts}/{entitlements.plan.totalEfforts} efforts
+              </Text>
+            </View>
+          )}
+          {!entitlements && (
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>
+              Model access unavailable
+            </Text>
+          )}
         </View>
       </View>
       <ScrollView
