@@ -58,7 +58,7 @@ export async function createApp(
   const audit = new O1AuditLedger(db);
   const connectorActions = new ConnectorActionService(db, connectorBus, Date.now, audit);
   const entitlements = new O1EntitlementService(db);
-  const missions = new O1MissionStore(db);
+  const missions = new O1MissionStore(db, undefined, audit);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.provider, o1.computerFabric?.gateway, config.computerProvisioningEnabled === true);
   async function requireComputerPermission(owner: string, risk: "write" | "destructive") {
     const settings = await db.get<{ mode?: string }>(owner, "o1-settings", "permissions");
