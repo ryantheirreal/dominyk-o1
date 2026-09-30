@@ -36,7 +36,7 @@ export function parseOpenAIComputerCall(input: unknown): O1ComputerCall {
   return {
     callId: value.call_id,
     actions,
-    requiresApproval: actions.some(isHighImpact) || safetyChecks.length > 0,
+    requiresApproval: safetyChecks.length > 0,
     ...(safetyChecks.length ? { safetyChecks } : {}),
   };
 }
@@ -72,8 +72,4 @@ function coordinate(value: unknown) {
 function enumValue<T extends string>(value: unknown, allowed: readonly T[]): T {
   if (typeof value !== "string" || !allowed.includes(value as T)) throw new Error("Unsupported computer button");
   return value as T;
-}
-
-function isHighImpact(action: O1ComputerCallAction) {
-  return action.type === "type" || action.type === "keypress" || action.type === "click" || action.type === "double_click" || action.type === "drag";
 }
