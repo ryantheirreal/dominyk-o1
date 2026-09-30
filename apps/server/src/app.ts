@@ -24,7 +24,8 @@ import { createO1Platform } from "./o1/index.ts";
 import { ImessageConnector } from "./o1/connectors/imessage.ts";
 import { ConnectorBus } from "./o1/connector-bus.ts";
 import { ConnectorActionService } from "./o1/connector-actions.ts";
-import { modeLabel, type PermissionMode } from "./o1/permissions.ts";
+import { modeLabel, type PermissionMode, normalizePermissionMode, type LegacyPermissionMode } from "./o1/permissions.ts";
+import { O1_PLANS } from "../../../packages/domain/src/plans.ts";
 
 export async function createApp(
   db: Store,
@@ -135,6 +136,7 @@ export async function createApp(
     definitions: o1.capabilities,
   }));
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
+  app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/connectors/:id/health", async (c) => {
     const id = c.req.param("id");
     if (!o1.connector(id)) throw new AppError("Connector not found", 404);
@@ -184,11 +186,12 @@ export async function createApp(
   });
   app.get("/api/o1/permissions", async (c) => {
     const current = await db.get<any>(c.get("owner"), "o1-settings", "permissions");
-    return c.json(current ?? { id:"permissions", mode:"ask_codex", updatedAt:new Date(0).toISOString() });
+    const value = current ? { ...current, mode: normalizePermissionMode(current.mode as LegacyPermissionMode) } : { id:"permissions", mode:"ask_o1", updatedAt:new Date(0).toISOString() };
+    return c.json(value);
   });
   app.put("/api/o1/permissions", async (c) => {
     const body = z.object({
-      mode: z.enum(["ask_codex","ask_approval","approve_for_me"]),
+      mode: z.enum(["ask_o1","ask_approval","approve_for_me"]),
       confirm: z.boolean().default(false),
     }).parse(await c.req.json());
     if (body.mode === "approve_for_me" && !body.confirm)
