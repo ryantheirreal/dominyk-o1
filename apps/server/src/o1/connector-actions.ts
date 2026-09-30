@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Store } from "../db.ts";
 import { AppError } from "../errors.ts";
 import { ConnectorBus, type ConnectorOperation } from "./connector-bus.ts";
-import { evaluatePermissionMode, type PermissionMode } from "./permissions.ts";
+import { evaluatePermissionMode, normalizePermissionMode, type PermissionMode, type LegacyPermissionMode } from "./permissions.ts";
 
 export interface ConnectorAction {
   id: string;
@@ -25,8 +25,8 @@ export class ConnectorActionService {
   ) {}
 
   async propose(owner: string, operation: ConnectorOperation, payload: Record<string, unknown>, mode?: PermissionMode) {
-    const settings = await this.db.get<{ id:string; mode:PermissionMode }>(owner,"o1-settings","permissions");
-    mode = mode ?? settings?.mode ?? "ask_codex";
+    const settings = await this.db.get<{ id:string; mode:LegacyPermissionMode }>(owner,"o1-settings","permissions");
+    mode = normalizePermissionMode(mode ?? settings?.mode);
     const id=randomUUID();
     const hash=createHash("sha256").update(JSON.stringify({ operation, payload })).digest("hex");
     const risk = operation.includes("send") ? "external" as const : "write" as const;
