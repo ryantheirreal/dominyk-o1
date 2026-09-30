@@ -96,8 +96,9 @@ export class ConversationAgent extends AbstractAgent {
       `${requestKey}:${name}:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
     const browserAbort = new AbortController();
     const connectorBus = new ConnectorBus();
-    const connectorActions = new ConnectorActionService(this.service.db, connectorBus);
-    const browserActions = new O1BrowserActionService(this.service.db, this.service.browser, new O1AuditLedger(this.service.db));
+    const audit = new O1AuditLedger(this.service.db);
+    const connectorActions = new ConnectorActionService(this.service.db, connectorBus, Date.now, audit);
+    const browserActions = new O1BrowserActionService(this.service.db, this.service.browser, audit);
     const tools = [
       ...computerTools(this.service.computer, this.service.files, this.owner, `chat:${requestKey}`, { permissionMode: async () => (await this.service.db.get<{ mode?: "ask_o1" | "ask_approval" | "approve_for_me" }>(this.owner, "o1-settings", "permissions"))?.mode ?? "ask_o1" }),
       defineTool({
