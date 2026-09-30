@@ -702,5 +702,5 @@ export async function createApp(
   app.get("/", (c) =>
     c.json({ name: "O1", app: "http://localhost:8081", health: "/api/health", platform: "/api/o1" }),
   );
-  return { app, auth, files, actions, workspace, agent, computer };
+  return { app, auth, files, actions, workspace, agent, computer, routineScheduler, o1 };
 }
