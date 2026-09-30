@@ -195,3 +195,6 @@ export interface ExecutionBackend {
 }
 
 export type { ComputerCommand, ComputerDirectory, ComputerSnapshot } from "./computer.ts";
+
+export type { O1PlanId, O1PlanModel, O1Plan, O1PlanModelId } from "./plans.ts";
+export { O1_PLANS, getO1Plan } from "./plans.ts";
