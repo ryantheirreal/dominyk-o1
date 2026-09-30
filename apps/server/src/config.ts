@@ -17,7 +17,7 @@ if (existsSync(".env")) {
   process.loadEnvFile(".env");
   if (shadowed.length)
     console.warn(
-      `[OpenMuse] Using ${shadowed.join(", ")} from the environment instead of .env. ` +
+      `[O1] Using ${shadowed.join(", ")} from the environment instead of .env. ` +
         (shadowed.length === 1
           ? "Unset it to use the .env value."
           : "Unset them to use the .env values."),
@@ -53,7 +53,7 @@ export interface Config {
 }
 
 export const intelligenceKeyRequiredMessage =
-  "OpenMuse requires CPK_INTELLIGENCE_API_KEY. " +
+  "O1 requires CPK_INTELLIGENCE_API_KEY. " +
   "Run `npx copilotkit@latest login` and `npx copilotkit@latest project select`, " +
   "then set the generated server-only key. " +
   "See https://docs.copilotkit.ai/intelligence/connect-your-runtime";
@@ -97,9 +97,9 @@ export function readConfig(): Config {
     port,
     host: process.env.HOST ?? "127.0.0.1",
     publicUrl,
-    dataDir: resolve(process.env.DATA_DIR ?? ".openmuse"),
+    dataDir: resolve(process.env.O1_DATA_DIR ?? process.env.DATA_DIR ?? ".o1"),
     databaseUrl: process.env.DATABASE_URL,
-    accessKey: process.env.OPENMUSE_ACCESS_KEY,
+    accessKey: process.env.O1_ACCESS_KEY ?? process.env.OPENMUSE_ACCESS_KEY,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
     agentBackend: backend,
@@ -113,8 +113,8 @@ export function readConfig(): Config {
     workerToken: process.env.WORKER_TOKEN,
     taskWorkerEnabled: process.env.TASK_WORKER_ENABLED !== "false",
     computerEnabled: process.env.COMPUTER_ENABLED === "true",
-    computerImage: process.env.COMPUTER_IMAGE ?? "openmuse-computer:local",
-    computerDeploymentId: process.env.COMPUTER_DEPLOYMENT_ID,
+    computerImage: process.env.O1_COMPUTER_IMAGE ?? process.env.COMPUTER_IMAGE ?? "o1-computer:local",
+    computerDeploymentId: process.env.O1_COMPUTER_DEPLOYMENT_ID ?? process.env.COMPUTER_DEPLOYMENT_ID,
     allowedOrigins: (
       process.env.ALLOWED_ORIGINS ?? "http://localhost:8081,http://127.0.0.1:8081"
     ).split(","),
@@ -127,6 +127,6 @@ export function readConfig(): Config {
       "Live mode requires OPENMUSE_ACCESS_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
     );
   if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
-    throw new Error("Sample workspace is local-only. HOST must be a loopback address.");
+    throw new Error("Sample O1 workspace is local-only. HOST must be a loopback address.");
   return config;
 }
