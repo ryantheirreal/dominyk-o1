@@ -451,6 +451,7 @@ export function ChatScreen({
             Model access unavailable
           </Text>
         )}
+      </View>
       <ScrollView
         ref={list}
         showsVerticalScrollIndicator={false}
