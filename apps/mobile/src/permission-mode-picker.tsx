@@ -3,10 +3,10 @@ import { Modal, Pressable, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { useWorkspace } from "./workspace";
 import { colors, s } from "./ui";
-type Mode = "ask_codex" | "ask_approval" | "approve_for_me";
-const OPTIONS=[{id:"ask_codex" as Mode,title:"Ask Codex anything",detail:"Consulta e análise; nenhuma alteração externa é autorizada.",icon:ShieldCheck,danger:false},{id:"ask_approval" as Mode,title:"Ask for approval",detail:"O1 pausa antes de modificações, mensagens ou ações externas.",icon:ShieldCheck,danger:false},{id:"approve_for_me" as Mode,title:"Approve for me",detail:"O1 executa ações automaticamente enquanto este modo estiver ativo.",icon:ShieldAlert,danger:true}];
+type Mode = "ask_o1" | "ask_approval" | "approve_for_me";
+const OPTIONS=[{id:"ask_o1" as Mode,title:"Ask o1 anything",detail:"Consulta e análise; nenhuma alteração externa é autorizada.",icon:ShieldCheck,danger:false},{id:"ask_approval" as Mode,title:"Ask for approval",detail:"O1 pausa antes de modificações, mensagens ou ações externas.",icon:ShieldCheck,danger:false},{id:"approve_for_me" as Mode,title:"Approve for me",detail:"O1 executa ações automaticamente enquanto este modo estiver ativo.",icon:ShieldAlert,danger:true}];
 export function PermissionModePicker(){
- const {api}=useWorkspace(); const [mode,setMode]=useState<Mode>("ask_codex"); const [open,setOpen]=useState(false); const [confirm,setConfirm]=useState(false); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+ const {api}=useWorkspace(); const [mode,setMode]=useState<Mode>("ask_o1"); const [open,setOpen]=useState(false); const [confirm,setConfirm]=useState(false); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
  useEffect(()=>{let alive=true; void api.request<{mode:Mode}>("/api/o1/permissions").then(v=>{if(alive)setMode(v.mode}).catch(()=>{}); return()=>{alive=false}},[api]);
  async function save(next:Mode){setBusy(true);setError("");try{await api.request("/api/o1/permissions",{mode:next==="approve_for_me" ? ("full_"+"access") : next,confirm:next==="approve_for_me"},"PUT");setMode(next);setOpen(false);setConfirm(false)}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setBusy(false)}}
  const current=OPTIONS.find(x=>x.id===mode)??OPTIONS[0]; const Icon=current.icon;
