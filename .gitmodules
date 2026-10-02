@@ -1,0 +1,3 @@
+[submodule "openbot"]
+	path = openbot
+	url = https://github.com/ryantheirreal/OpenBot.git
