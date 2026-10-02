@@ -74,5 +74,4 @@ export class O1ComputerUseRunner {
     await input.checkpoint?.({ runId, responseId: response.responseId, turn: maxTurns, status: "exhausted" });
     return { status: "exhausted", responseId: response.responseId, output: response.output };
   }
-  }
 }

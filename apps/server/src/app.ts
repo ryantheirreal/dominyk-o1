@@ -44,6 +44,9 @@ import { O1EventRouter } from "./o1/event-router.ts";
 import { O1MemoryEngine } from "./o1/memory-engine.ts";
 import { O1CommandCenterService } from "./o1/command-center.ts";
 import { O1BenchmarkEngine } from "./o1/benchmark-engine.ts";
+import { CreditLedger } from "./o1/credits.ts";
+import { paymentConnectionInfo } from "./o1/payments.ts";
+import { buildTravelSearch, travelPlanSchema } from "./o1/travel.ts";
 
 export async function createApp(
   db: Store,
@@ -79,6 +82,7 @@ export async function createApp(
   const o1 = await createO1Platform(config);
   const connectorBus = new ConnectorBus();
   const connectorActions = new ConnectorActionService(db, connectorBus, Date.now, audit);
+  const credits = new CreditLedger(db);
   const entitlements = new O1EntitlementService(db);
   const missions = new O1MissionStore(db, undefined, audit);
   const computers = new O1ComputerSessionService(db, o1.computerFabric?.persistentProvider, o1.computerFabric?.persistentGateway, config.computerProvisioningEnabled === true, audit);
@@ -182,6 +186,22 @@ export async function createApp(
     definitions: o1.capabilities,
   }));
   app.get("/api/o1/connectors", async (c) => c.json(await o1.connectorStatuses()));
+  app.get("/api/o1/connectors/stripe/connection", (c) => c.json(paymentConnectionInfo()));
+  app.get("/api/o1/connectors/stripe/oauth/start", (c) => {
+    const info = paymentConnectionInfo();
+    if (!info.oauth.authorizeUrl) throw new AppError("Configure STRIPE_CLIENT_ID para ativar o OAuth do Stripe", 503);
+    return c.redirect(info.oauth.authorizeUrl);
+  });
+  app.get("/api/o1/connectors/stripe/oauth/callback", (c) => c.json({ ok: false, status: "not_configured", message: "Configure o callback OAuth e a persistência de contas conectadas antes de concluir a conexão. O link CLI continua disponível." }, 501));
+  app.get("/api/o1/credits", async (c) => c.json({ balance: await credits.get(c.get("owner")), history: await credits.history(c.get("owner")) }));
+  app.post("/api/o1/credits/grant", async (c) => {
+    const body = z.object({ amount: z.number().int().positive().max(1_000_000), reason: z.string().trim().min(1).max(500) }).parse(await c.req.json());
+    return c.json(await credits.grant(c.get("owner"), body.amount, body.reason, c.req.header("x-whilo-credits-key")), 201);
+  });
+  app.post("/api/o1/travel/search", async (c) => {
+    const plan = travelPlanSchema.parse(await c.req.json());
+    return c.json(buildTravelSearch(plan), 201);
+  });
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
   app.get("/api/o1/entitlements", async (c) => c.json(await entitlements.get(c.get("owner"))));
@@ -448,7 +468,7 @@ export async function createApp(
   app.post("/api/o1/connector-actions", async (c) => {
     const body = z.object({
       operation: z.enum([
-        "slack.send_message","telegram.send_message","discord.send_message","imessage.send",
+        "slack.send_message","telegram.send_message","discord.send_message","imessage.send","stripe.create_checkout_link",
       ]),
       payload: z.record(z.string(), z.unknown()),
     }).parse(await c.req.json());

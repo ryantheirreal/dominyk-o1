@@ -36,8 +36,10 @@ export class ConnectorActionService {
     mode = normalizePermissionMode(mode ?? settings?.mode);
     const id=randomUUID();
     const hash=createHash("sha256").update(JSON.stringify({ operation, payload })).digest("hex");
-    const risk = operation.includes("send") ? "external" as const : "write" as const;
-    const permission = evaluatePermissionMode(mode, risk);
+    const risk = operation.includes("send") || operation.startsWith("stripe.") ? "external" as const : "write" as const;
+    const permission = operation.startsWith("stripe.") && mode !== "ask_approval"
+      ? { decision: "ask" as const, reason: "Pagamentos sempre exigem aprovação humana explícita." }
+      : evaluatePermissionMode(mode, risk);
     const action: ConnectorAction={
       id, owner, operation,
       payload,

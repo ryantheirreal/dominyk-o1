@@ -11,6 +11,8 @@ export type ConnectorOperation =
   | "discord.me"
   | "discord.send_message"
   | "notion.search"
+  | "stripe.create_checkout_link"
+  | "travel.build_search"
   | "imessage.list_messages" | "imessage.get_attachment"
   | "imessage.send";
 
@@ -21,6 +23,7 @@ const READ_OPS = new Set<ConnectorOperation>([
   "telegram.get_me",
   "discord.me",
   "notion.search",
+  "travel.build_search",
   "imessage.list_messages",
   "imessage.get_attachment",
 ]);
@@ -33,7 +36,7 @@ const allowedHosts: Record<string, string> = {
   notion: "https://api.notion.com",
 };
 
-function headers(id: string) {
+function headers(id: string): Record<string, string> {
   switch (id) {
     case "github": return { Authorization:"Bearer " + (process.env.GITHUB_TOKEN ?? ""), Accept:"application/vnd.github+json" };
     case "slack": return { Authorization:"Bearer " + (process.env.SLACK_BOT_TOKEN ?? "") };
@@ -138,6 +141,15 @@ export class ConnectorBus {
           method:"POST",headers:{"Content-Type":"application/json",...headers("notion")},
           body:JSON.stringify({query:String(p.query ?? "")}),
         });
+      case "travel.build_search": {
+        const { buildTravelSearch } = await import("./travel.ts");
+        return buildTravelSearch(p as never);
+      }
+      case "stripe.create_checkout_link": {
+        if (!input.approved) throw new Error("Pagamentos exigem aprovação explícita");
+        const { createCheckoutLink } = await import("./payments.ts");
+        return createCheckoutLink(p as never);
+      }
       case "imessage.get_attachment": {
         const index=Number(p.index ?? -1);
         if(!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative integer");

@@ -60,8 +60,6 @@ export class ImessageConnector {
     if (!response.ok) throw new Error(typeof payload.error === "string" ? payload.error : "iMessage send failed (" + response.status + ")");
     return payload as { status:string; attachment_sent?:boolean; text_sent?:boolean };
   }
-}
-
   async attachment(messageGuid: string, index: number) {
     this.assertConfigured();
     if (!Number.isSafeInteger(index) || index < 0) throw new Error("attachment index must be a non-negative integer");
@@ -73,3 +71,4 @@ export class ImessageConnector {
       bytes: await response.arrayBuffer(),
     };
   }
+}

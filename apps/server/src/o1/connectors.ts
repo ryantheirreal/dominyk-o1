@@ -19,6 +19,7 @@ export interface ConnectorStatus extends ConnectorManifest {
 }
 
 export const CONNECTORS: readonly ConnectorManifest[] = [
+  { id:"travel", name:"Viagens", kind:"native", category:"research", env:[], capabilities:["flight_search","hotel_search","itinerary_draft"] },
   { id:"google", name:"Google Workspace", kind:"native", category:"productivity", env:["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET"], capabilities:["gmail","calendar","drive"] },
   { id:"github", name:"GitHub", kind:"rest", category:"code", env:["GITHUB_TOKEN"], capabilities:["repos","issues","pulls","actions","releases"], healthPath:"/user" },
   { id:"gitlab", name:"GitLab", kind:"rest", category:"code", env:["GITLAB_TOKEN"], capabilities:["repos","issues","merge_requests","pipelines"], healthPath:"/api/v4/user" },
