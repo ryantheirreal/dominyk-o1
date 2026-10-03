@@ -7,7 +7,15 @@ import {
   useRenderTool,
   useRenderToolCall,
 } from "@copilotkit/react-native/headless";
-import { ArrowDown, ArrowUp, FileText, LockKeyhole, RotateCcw, Square, X } from "lucide-react-native";
+import {
+  ArrowDown,
+  ArrowUp,
+  FileText,
+  LockKeyhole,
+  RotateCcw,
+  Square,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   KeyboardAvoidingView,
@@ -28,6 +36,8 @@ import { BrowserThreadCard } from "./computer";
 import { ConversationQueue, type QueuedMessage } from "./conversation-queue";
 import { runConversationTurn } from "./conversation-run";
 import { MailToolCard } from "./mail-tool-card";
+import { TravelToolCard } from "./travel-tool-card";
+import { PurchaseToolCard } from "./purchase-tool-card";
 import { FileThreadCard, TaskThreadCard } from "./thread-artifacts";
 import { type Selection, useMuseThread } from "./threads";
 import { Button, Card, CheckRow, colors, ErrorNotice, s } from "./ui";
@@ -97,6 +107,22 @@ export function WorkspaceTools() {
     parameters: displayParameters,
     render: ({ result, status }) => (
       <ServerToolCard name="Tracking" result={result} loading={status !== "complete"} />
+    ),
+  });
+  useRenderTool({
+    name: "travel_search",
+    description: "Show sourced travel comparisons and templates",
+    parameters: displayParameters,
+    render: ({ result, status }) => (
+      <TravelToolCard result={result} loading={status !== "complete"} />
+    ),
+  });
+  useRenderTool({
+    name: "prepare_purchase",
+    description: "Show a purchase review and safe checkout handoff",
+    parameters: displayParameters,
+    render: ({ result, status }) => (
+      <PurchaseToolCard result={result} loading={status !== "complete"} />
     ),
   });
   useRenderTool({
@@ -210,7 +236,8 @@ export function ChatScreen({
     void api
       .request<{ plan: O1Plan }>("/api/o1/entitlements")
       .then((value) => {
-        if (active) setEntitlements({ plan: value.plan, unlockedEfforts: value.plan.unlockedEfforts });
+        if (active)
+          setEntitlements({ plan: value.plan, unlockedEfforts: value.plan.unlockedEfforts });
       })
       .catch(() => {
         if (active) setEntitlements(undefined);
@@ -221,17 +248,29 @@ export function ChatScreen({
   }, [api]);
   useEffect(() => {
     let active = true;
-    void api.request<{ effort: number; modelId: string }>("/api/o1/run-preferences").then((value) => {
-      if (active) setRunPreferences(value);
-    }).catch(() => {});
-    return () => { active = false; };
+    void api
+      .request<{ effort: number; modelId: string }>("/api/o1/run-preferences")
+      .then((value) => {
+        if (active) setRunPreferences(value);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [api]);
   async function chooseRunPreference(input: { effort?: number; modelId?: string }) {
     if (!entitlements || runPreferenceBusy) return;
-    const next = { effort: input.effort ?? runPreferences?.effort ?? 1, modelId: input.modelId ?? runPreferences?.modelId ?? entitlements.plan.models[0].id };
+    const next = {
+      effort: input.effort ?? runPreferences?.effort ?? 1,
+      modelId: input.modelId ?? runPreferences?.modelId ?? entitlements.plan.models[0].id,
+    };
     setRunPreferenceBusy(true);
     try {
-      const value = await api.request<{ effort: number; modelId: string }>("/api/o1/run-preferences", next, "PUT");
+      const value = await api.request<{ effort: number; modelId: string }>(
+        "/api/o1/run-preferences",
+        next,
+        "PUT",
+      );
       setRunPreferences(value);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -403,7 +442,13 @@ export function ChatScreen({
                       opacity: runPreferenceBusy ? 0.6 : 1,
                     }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: selected ? colors.blueDark : colors.muted }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "800",
+                        color: selected ? colors.blueDark : colors.muted,
+                      }}
+                    >
                       {model.name}
                     </Text>
                   </Pressable>
@@ -435,7 +480,13 @@ export function ChatScreen({
                     }}
                   >
                     {!unlocked && <LockKeyhole size={11} color={colors.muted} />}
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: unlocked ? colors.text : colors.muted }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "800",
+                        color: unlocked ? colors.text : colors.muted,
+                      }}
+                    >
                       Effort {effort}
                     </Text>
                   </Pressable>
@@ -443,7 +494,8 @@ export function ChatScreen({
               })}
             </View>
             <Text style={s.small}>
-              {entitlements.plan.name} · {entitlements.plan.unlockedEfforts}/{entitlements.plan.totalEfforts} efforts unlocked
+              {entitlements.plan.name} · {entitlements.plan.unlockedEfforts}/
+              {entitlements.plan.totalEfforts} efforts unlocked
             </Text>
           </View>
         ) : (

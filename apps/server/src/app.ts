@@ -47,6 +47,7 @@ import { O1BenchmarkEngine } from "./o1/benchmark-engine.ts";
 import { CreditLedger } from "./o1/credits.ts";
 import { paymentConnectionInfo } from "./o1/payments.ts";
 import { buildTravelSearch, travelPlanSchema } from "./o1/travel.ts";
+import { preparePurchase, purchaseRequestSchema } from "./o1/purchases.ts";
 
 export async function createApp(
   db: Store,
@@ -201,6 +202,10 @@ export async function createApp(
   app.post("/api/o1/travel/search", async (c) => {
     const plan = travelPlanSchema.parse(await c.req.json());
     return c.json(buildTravelSearch(plan), 201);
+  });
+  app.post("/api/o1/purchases/prepare", async (c) => {
+    const request = purchaseRequestSchema.parse(await c.req.json());
+    return c.json(preparePurchase(request), 201);
   });
   app.get("/api/o1/plans", (c) => c.json({ plans: O1_PLANS }));
   app.get("/api/o1/model-catalog", (c) => c.json({ models: o1.modelCatalog() }));
