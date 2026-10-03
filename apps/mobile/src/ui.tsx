@@ -399,7 +399,7 @@ export function LinkRow({
     </Pressable>
   );
 }
-/** OpenMuse's original capybara, shared by every assistant surface. */
+/** Whilo's official mascot and logo, shared by every assistant surface. */
 export function Mascot({
   size = 42,
   variant = "sky",
@@ -407,13 +407,9 @@ export function Mascot({
   size?: number;
   variant?: "sky" | "sand" | "lilac";
 }) {
-  const palette = {
-    sky: "#ECF5FA",
-    sand: "#FAF0DF",
-    lilac: "#F1ECF9",
-  }[variant];
+  const palette = { sky: "#2E91F2", sand: "#2E91F2", lilac: "#2E91F2" }[variant];
   return (
-    <View accessibilityLabel="OpenMuse capybara" style={{ width: size, height: size }}>
+    <View accessibilityLabel="Whilo mascot" style={{ width: size, height: size }}>
       <View
         style={{
           position: "absolute",
@@ -421,12 +417,12 @@ export function Mascot({
           left: size * 0.12,
           width: size * 0.76,
           height: size * 0.76,
-          borderRadius: size,
+          borderRadius: size * 0.24,
           backgroundColor: palette,
         }}
       />
       <Image
-        source={require("../assets/capybara.png")}
+        source={require("../assets/whilo-icon.png")}
         resizeMode="contain"
         style={{ width: size, height: size }}
         accessible={false}

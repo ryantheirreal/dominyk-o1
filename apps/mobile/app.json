@@ -1,15 +1,16 @@
 {
   "expo": {
-    "name": "O1",
-    "slug": "o1",
-    "scheme": "o1",
+    "name": "Whilo",
+    "slug": "whilo",
+    "scheme": "whilo",
+    "icon": "./assets/whilo-icon.png",
     "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": { "supportsTablet": true, "bundleIdentifier": "com.onerall.o1" },
     "android": { "package": "com.onerall.o1" },
-    "web": { "bundler": "metro", "name": "O1 — agent operating system" },
+    "web": { "bundler": "metro", "name": "Whilo — seu agente que continua trabalhando", "themeColor": "#2E91F2", "backgroundColor": "#F7FBFF", "favicon": "./assets/whilo-icon.png" },
     "plugins": [
       "expo-document-picker",
       "@config-plugins/react-native-blob-util",

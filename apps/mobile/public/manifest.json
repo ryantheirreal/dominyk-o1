@@ -1,0 +1,13 @@
+{
+  "name": "Whilo — seu agente que continua trabalhando",
+  "short_name": "Whilo",
+  "description": "Um agente pessoal persistente para pesquisa, tarefas, viagens e compras com aprovação humana.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7FBFF",
+  "theme_color": "#2E91F2",
+  "orientation": "any",
+  "icons": [
+    { "src": "/assets/whilo-icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
