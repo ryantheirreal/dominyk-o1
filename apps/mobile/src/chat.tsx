@@ -41,6 +41,7 @@ import { PurchaseToolCard } from "./purchase-tool-card";
 import { FileThreadCard, TaskThreadCard } from "./thread-artifacts";
 import { type Selection, useMuseThread } from "./threads";
 import { Button, Card, CheckRow, colors, ErrorNotice, s } from "./ui";
+import { VoiceCall } from "./voice-call";
 import { useWorkspace } from "./workspace";
 import { PermissionModePicker } from "./permission-mode-picker";
 import type { O1Plan } from "../../../packages/domain/src/plans";
@@ -67,6 +68,14 @@ export function WorkspaceTools() {
     parameters: displayParameters,
     render: ({ result, status }) => (
       <MailToolCard result={result} loading={status !== "complete"} />
+    ),
+  });
+  useRenderTool({
+    name: "prepare_email",
+    description: "Show the exact email draft waiting for approval",
+    parameters: displayParameters,
+    render: ({ result, status }) => (
+      <ServerToolCard name="Email review" result={result} loading={status !== "complete"} />
     ),
   });
   useRenderTool({
@@ -235,7 +244,7 @@ export function ChatScreen({
     let active = true;
     void api
       .request<{ plan: O1Plan }>("/api/o1/entitlements")
-      .then((value) => {
+      .then((value: { plan: O1Plan }) => {
         if (active)
           setEntitlements({ plan: value.plan, unlockedEfforts: value.plan.unlockedEfforts });
       })
@@ -250,7 +259,7 @@ export function ChatScreen({
     let active = true;
     void api
       .request<{ effort: number; modelId: string }>("/api/o1/run-preferences")
-      .then((value) => {
+      .then((value: { effort: number; modelId: string }) => {
         if (active) setRunPreferences(value);
       })
       .catch(() => {});
@@ -410,6 +419,13 @@ export function ChatScreen({
     setAttachments([]);
     setPicking(false);
   }
+  function sendVoice(text: string) {
+    if (!text.trim() || !isReady || !loaded) return;
+    if (!busy && !agent.isRunning && !saveError && !queue.getSnapshot().pending.length)
+      queue.resume();
+    setShowResults(false);
+    enqueue(text.trim());
+  }
   const messages = agent.messages || [];
   const latestUserIndex = messages.reduce(
     (last, message, index) => (message.role === "user" ? index : last),
@@ -417,6 +433,11 @@ export function ChatScreen({
   );
   const visible = messages.filter((m) => m.role === "user" || m.role === "assistant");
   const replying = busy || agent.isRunning;
+  const lastAssistantText = [...visible]
+    .reverse()
+    .find(
+      (message) => message.role === "assistant" && typeof message.content === "string",
+    )?.content;
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 2, gap: 7 }}>
@@ -734,6 +755,12 @@ export function ChatScreen({
           Latest messages
         </Button>
       )}
+      <VoiceCall
+        active={active}
+        replying={replying}
+        assistantText={typeof lastAssistantText === "string" ? lastAssistantText : undefined}
+        onTranscript={sendVoice}
+      />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ErrorNotice error={saveError} />
         {!!saveError && (
